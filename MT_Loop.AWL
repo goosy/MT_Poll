@@ -1,0 +1,101 @@
+DATA_BLOCK "MT01"
+TITLE =
+VERSION : 0.0
+
+"MB_TCP_Poll"
+BEGIN
+   TCON_Parameters.block_length := W#16#40; 
+   TCON_Parameters.id := W#16#1; 
+   TCON_Parameters.connection_type := B#16#11; 
+   TCON_Parameters.active_est := TRUE; 
+   TCON_Parameters.local_device_id := B#16#2; 
+   TCON_Parameters.local_tsap_id_len := B#16#0; 
+   TCON_Parameters.rem_subnet_id_len := B#16#0; 
+   TCON_Parameters.rem_staddr_len := B#16#4; 
+   TCON_Parameters.rem_tsap_id_len := B#16#2; 
+   TCON_Parameters.next_staddr_len := B#16#0; 
+   TCON_Parameters.rem_staddr[1] := B#16#C0; 
+   TCON_Parameters.rem_staddr[2] := B#16#A8; 
+   TCON_Parameters.rem_staddr[3] := B#16#17; 
+   TCON_Parameters.rem_staddr[4] := B#16#A; 
+   TCON_Parameters.rem_tsap_id[1] := B#16#1; 
+   TCON_Parameters.rem_tsap_id[2] := B#16#F7; 
+   TCON_Parameters.spare := W#16#0; 
+END_DATA_BLOCK
+
+// 轮询定义数据块 "Poll_DB" DB51
+DATA_BLOCK "Poll_DB"
+TITLE =
+VERSION : 0.0
+
+
+  STRUCT  
+   pollList : ARRAY  [0 .. 2 ] OF // 轮询列表
+   STRUCT   
+    MBAP_seq : WORD ; //事务号 PLC自动填写
+    MBAP_protocol : WORD ;  //必须为0
+    MBAP_length : WORD  := W#16#6;  //长度，对读命令，通常为6
+    MBAP_Addr : BYTE ;  //设备号，不关心的情况下可以填0
+    MFunction : BYTE ;  //modbus功能号
+    Addr : WORD ; //起始地址
+    Number : WORD ; //长度
+    recvDB : INT ;  //接收数据块号
+    recvDBB : INT ; //接收数据块起始地址
+   END_STRUCT ; 
+   buff : STRUCT // 接收缓冲区
+    MBAP_seq : WORD ;    //事务号 PLC自动填写
+    MBAP_protocol : WORD ;    //必须为0
+    MBAP_length : WORD ;    //长度，对读命令，通常为6
+    MBAP_Addr : BYTE ;    //设备号，不关心的情况下可以填0
+    MFunction : BYTE ;    //modbus功能号
+    data : ARRAY[0..251] OF BYTE ;    //数据
+   END_STRUCT ;    
+  END_STRUCT ;  
+BEGIN
+   pollList[0].MBAP_Addr := B#16#1; 
+   pollList[0].MFunction := B#16#3; 
+   pollList[0].Addr := W#16#0; 
+   pollList[0].Number := W#16#C; 
+   pollList[0].recvDB := 52; 
+   pollList[0].recvDBB := 0; 
+   pollList[1].MBAP_Addr := B#16#2; 
+   pollList[1].MFunction := B#16#4; 
+   pollList[1].Addr := W#16#0; 
+   pollList[1].Number := W#16#A; 
+   pollList[1].recvDB := 52; 
+   pollList[1].recvDBB := 256; 
+   pollList[2].MBAP_Addr := B#16#3; 
+   pollList[2].MFunction := B#16#4; 
+   pollList[2].Addr := W#16#0; 
+   pollList[2].Number := W#16#8; 
+   pollList[2].recvDB := 52; 
+   pollList[2].recvDBB := 512; 
+END_DATA_BLOCK
+
+// 设备数据DB块 可定义多个
+DATA_BLOCK DB52 
+  STRUCT    
+   data1 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
+   BYTE ;   
+   data2 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
+   BYTE ;   
+   data3 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
+   BYTE ;   
+  END_STRUCT ; 
+BEGIN
+END_DATA_BLOCK
+
+// 调用
+FUNCTION "MT_Loop" : VOID
+TITLE =
+VERSION : 0.0
+
+BEGIN
+NETWORK
+TITLE =
+
+      CALL "MB_TCP_Poll" , "MT01" (
+           DATA  := "Poll_DB".pollList,
+           buff  := "Poll_DB".buff);
+      NOP   0; 
+END_FUNCTION

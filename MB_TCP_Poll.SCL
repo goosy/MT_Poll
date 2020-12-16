@@ -1,0 +1,181 @@
+FUNCTION_BLOCK "MB_TCP_Poll"
+
+VAR_INPUT 
+    TCON_Parameters : STRUCT     
+        block_length : WORD  := W#16#40;    //#!TCON config!#
+        id : WORD  := W#16#1;    
+        connection_type : BYTE  := B#16#11;    
+        active_est : BOOL := TRUE;    
+        local_device_id : BYTE  := B#16#2;    
+        local_tsap_id_len : BYTE ;    
+        rem_subnet_id_len : BYTE ;    
+        rem_staddr_len : BYTE  := B#16#4;    
+        rem_tsap_id_len : BYTE ;    
+        next_staddr_len : BYTE ;    
+        local_tsap_id : ARRAY  [1 .. 16 ] OF BYTE  := B#16#0;    
+        rem_subnet_id : ARRAY  [1 .. 6 ] OF BYTE  := B#16#0;    
+        rem_staddr : ARRAY  [1 .. 6 ] OF BYTE  := B#16#C0, B#16#A8, B#16#0, B#16#1;    
+        rem_tsap_id : ARRAY  [1 .. 16 ] OF BYTE  := B#16#1, B#16#F6;    
+        next_staddr : ARRAY  [1 .. 6 ] OF BYTE  := B#16#0;    
+        spare : WORD ;    //#!TCON config!#
+    END_STRUCT ; 
+    intervalTime : TIME := T#200MS;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    overTimes : INT := 10; // 单次询问的回应时间大于间隔时间的overTimes倍，判定超时，该设备数据标记无效
+    DATA : ANY ; // 轮询定义系列数据区
+    sendP_S AT DATA: STRUCT  // Define ANY structure
+        SyntaxID: BYTE := 16#10;  
+        DataType: BYTE := 16#2;
+        DataCount: INT ;
+        DB_Nummer: INT ;
+        Byte_Pointer: DWORD := dw#16#84000000;
+    END_STRUCT;
+    buff : ANY; // 接收缓冲区
+    recvP_S AT buff : STRUCT  // Define ANY structure
+        SyntaxID: BYTE := 16#10;  
+        DataType: BYTE := 16#2;
+        DataCount: INT ;
+        DB_Nummer: INT ;
+        Byte_Pointer: DWORD := dw#16#84000000;
+    END_STRUCT;
+END_VAR
+
+VAR_IN_OUT
+END_VAR
+
+VAR_OUTPUT
+END_VAR
+
+VAR
+    conTrigger : BOOL;
+    sendTrigger : BOOL;
+    recvTrigger : BOOL := TRUE;
+    disconTrigger: BOOL;
+    initialized : BOOL ; // 输入已初始化
+    index : INT ; // 第几轮
+    baseOffset : INT ;
+    buffOffset : INT ;
+    transLength : INT ;
+    TCON_ID : TCON;
+    TSEND_ID : TSEND;
+    TRCV_ID : TRCV;
+    TDISCON_ID : TDISCON;
+    TimerON : TON;
+    waitCount : ARRAY[0..31] OF INT ;
+END_VAR
+
+VAR_TEMP
+    w_DBNO : WORD ;
+    sendDBB : INT ;
+    sendFunction : BYTE ;
+    recvDB : WORD ;
+    recvDBB : INT ;
+    recvIndex : INT;
+    recvMBAPProtocol : WORD ;
+    recvLen : INT;
+    recvFunction : BYTE ;
+    copyIndex : INT ;
+END_VAR
+
+BEGIN
+    // 初始化
+    IF NOT initialized THEN
+        IF (sendP_S.DB_Nummer = 0) 
+            OR (sendP_S.DataType <> B#16#2)
+            OR ((sendP_S.Byte_Pointer AND DW#16#ff000000) <> DW#16#84000000) THEN
+            RETURN;    
+        END_IF;    
+        IF (recvP_S.DB_Nummer = 0) 
+            OR (recvP_S.DataType <> B#16#2)
+            OR ((recvP_S.Byte_Pointer AND DW#16#ff000000) <> DW#16#84000000) THEN
+            RETURN;    
+        END_IF;    
+        index := 0;
+        baseOffset := DWORD_TO_INT(SHR(IN := sendP_S.Byte_Pointer, N := 3));
+        buffOffset := DWORD_TO_INT(SHR(IN := recvP_S.Byte_Pointer, N := 3));
+        transLength := sendP_S.DataCount/16;
+        sendP_S.DataCount := 12;
+        initialized := TRUE;
+    END_IF;
+
+    // 范围检查
+    IF index < 0 OR index >= transLength THEN
+        index := 0;
+    END_IF;
+
+    TCON_ID (
+        REQ                      := conTrigger,
+        ID                       := TCON_Parameters.id,
+        CONNECT                  := TCON_Parameters);
+    
+    // 发送
+    sendDBB := index * 16 + baseOffset;
+    sendP_S.Byte_Pointer := INT_TO_DWORD(sendDBB * 8) OR DW#16#84000000;
+    w_DBNO := INT_TO_WORD(sendP_S.DB_Nummer);
+    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB] := INT_TO_WORD(1000 + index); //MBAP_seq
+    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+2] := W#16#0; // MBAP_protocol
+    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+4] := W#16#6; // MBAP_length
+    TSEND_ID (
+        REQ                      := sendTrigger,
+        ID                       := TCON_Parameters.id,
+        LEN                      := 12,
+        DATA                     := DATA);
+    IF TSEND_ID.DONE OR TSEND_ID.ERROR THEN
+        sendTrigger := FALSE;
+        waitCount[index] := waitCount[index] + 1;
+    END_IF;
+    
+    // 接收
+    TRCV_ID (
+        EN_R                     := recvTrigger,
+        ID                       := TCON_Parameters.id,
+        DATA                     := buff);
+    
+    TDISCON_ID (
+        REQ                      := disconTrigger,
+        ID                       := TCON_Parameters.id);
+
+    recvDB := WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+12];
+    recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+14]);
+    // 接收处理
+    IF TRCV_ID.NDR THEN
+        w_DBNO := INT_TO_WORD(recvP_S.DB_Nummer);
+        recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset])-1000;
+        recvMBAPProtocol := WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset+2];
+        recvLen := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset+4]);
+        recvFunction := WORD_TO_BLOCK_DB(w_DBNO).DB[buffOffset+7];
+        sendFunction := WORD_TO_BLOCK_DB(INT_TO_WORD(sendP_S.DB_Nummer)).DB[recvIndex * 16 + baseOffset + 7];
+        // 接收成功时处理
+        IF recvMBAPProtocol = w#16#0 AND recvLen > 3 AND recvFunction = sendFunction THEN
+            //OnRecv(
+            //    RecvDB := recvDB,
+            //    RecvDBB := recvDBB,
+            //    LEN := 0);
+            waitCount[recvIndex] := 0;
+            FOR copyIndex := 0 TO recvLen-1 BY 1 DO
+                WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(w_DBNO).DB[buffOffset+copyIndex+6];
+            END_FOR;
+        ELSE
+            WORD_TO_BLOCK_DB(recvDB).DB[recvDBB] := B#16#0; // 设备不正常;
+        END_IF;
+    END_IF;
+    IF waitCount[index] > overTimes THEN // 超时处理
+        WORD_TO_BLOCK_DB(recvDB).DB[recvDBB] := B#16#0;// 设置接收无效
+    END_IF;    
+
+    // 启动定时
+    TimerON(
+           IN := sendTrigger,
+           PT := intervalTime);
+    IF TimerON.Q THEN
+        index := index + 1; 
+        sendTrigger := FALSE;
+        conTrigger := TRUE;
+        recvTrigger := TRUE;
+    ELSE
+        sendTrigger := TRUE; 
+        conTrigger := FALSE;  
+        disconTrigger := FALSE;
+    END_IF;
+        
+END_FUNCTION_BLOCK
+
