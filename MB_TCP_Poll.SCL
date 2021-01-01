@@ -119,10 +119,6 @@ BEGIN
         ID                       := TCON_Parameters.id,
         LEN                      := 12,
         DATA                     := DATA);
-    IF TSEND_ID.DONE OR TSEND_ID.ERROR THEN
-        sendTrigger := FALSE;
-        waitCount[index] := waitCount[index] + 1;
-    END_IF;
     
     // 接收
     TRCV_ID (
@@ -146,14 +142,14 @@ BEGIN
         sendFunction := WORD_TO_BLOCK_DB(INT_TO_WORD(sendP_S.DB_Nummer)).DB[recvIndex * 16 + baseOffset + 7];
         // 接收成功时处理
         IF recvMBAPProtocol = w#16#0 AND recvLen > 3 AND recvFunction = sendFunction THEN
-            //OnRecv(
-            //    RecvDB := recvDB,
-            //    RecvDBB := recvDBB,
-            //    LEN := 0);
             waitCount[recvIndex] := 0;
             FOR copyIndex := 0 TO recvLen-1 BY 1 DO
                 WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(w_DBNO).DB[buffOffset+copyIndex+6];
             END_FOR;
+            //OnRecv(
+            //    RecvDB := recvDB,
+            //    RecvDBB := recvDBB,
+            //    LEN := recvLen);
         ELSE
             WORD_TO_BLOCK_DB(recvDB).DB[recvDBB] := B#16#0; // 设备不正常;
         END_IF;
@@ -163,10 +159,9 @@ BEGIN
     END_IF;    
 
     // 启动定时
-    TimerON(
-           IN := sendTrigger,
-           PT := intervalTime);
+    TimerON(IN := sendTrigger, PT := intervalTime);
     IF TimerON.Q THEN
+        waitCount[index] := waitCount[index] + 1;
         index := index + 1; 
         sendTrigger := FALSE;
         conTrigger := TRUE;
@@ -176,6 +171,5 @@ BEGIN
         conTrigger := FALSE;  
         disconTrigger := FALSE;
     END_IF;
-        
+       
 END_FUNCTION_BLOCK
-
