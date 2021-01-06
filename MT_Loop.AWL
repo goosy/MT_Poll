@@ -75,12 +75,12 @@ END_DATA_BLOCK
 // 设备数据DB块 可定义多个
 DATA_BLOCK DB52 
   STRUCT    
-   data1 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
+   data1 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，DBX0.0 为 FALSE
    BYTE ;   
-   data2 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
+   data2 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，DBX256.0 为 FALSE
    BYTE ;   
-   data3 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，第一个字节为0
-   BYTE ;   
+   data3 : ARRAY  [0 .. 255] OF // 未收到数据或设备不正常时，DBX512.0 为 FALSE
+   BYTE ;  
   END_STRUCT ; 
 BEGIN
 END_DATA_BLOCK

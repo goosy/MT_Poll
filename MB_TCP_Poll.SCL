@@ -1,4 +1,10 @@
 FUNCTION_BLOCK "MB_TCP_Poll"
+TITLE='modbus 轮询'
+VERSION:'0.50'
+KNOW_HOW_PROTECT
+AUTHOR:Goosy
+NAME:SC
+FAMILY:CP
 
 VAR_INPUT 
     TCON_Parameters : STRUCT     
@@ -46,34 +52,36 @@ VAR_OUTPUT
 END_VAR
 
 VAR
-    conTrigger : BOOL;
-    sendTrigger : BOOL;
-    recvTrigger : BOOL := TRUE;
-    disconTrigger: BOOL;
+    conTrigger : BOOL ; // 建立TCP连接触发器
+    sendTrigger : BOOL ; // TCP发送触发器
+    recvTrigger : BOOL := TRUE; // TCP接收触发器
+    disconTrigger: BOOL ; // 断开TCP连接触发器
     initialized : BOOL ; // 输入已初始化
-    index : INT ; // 第几轮
-    baseOffset : INT ;
-    buffOffset : INT ;
-    transLength : INT ;
-    TCON_ID : TCON;
-    TSEND_ID : TSEND;
-    TRCV_ID : TRCV;
-    TDISCON_ID : TDISCON;
-    TimerON : TON;
+    transIndex : INT ; // 第几轮
+    transLength : INT ; // 轮询个数
+    pollBase : INT ; // 轮询块中轮询开始位置
+    buffBase : INT ; // 缓冲块中缓冲开始位置
+    TCON_ID : TCON ;
+    TSEND_ID : TSEND ;
+    TRCV_ID : TRCV ;
+    TDISCON_ID : TDISCON ;
+    TimerON : TON ;
     waitCount : ARRAY[0..31] OF INT ;
 END_VAR
 
 VAR_TEMP
-    w_DBNO : WORD ;
+    poll_DBNO : WORD ;
+    buff_DBNO : WORD ;
     sendDBB : INT ;
     sendFunction : BYTE ;
     recvDB : WORD ;
     recvDBB : INT ;
-    recvIndex : INT;
+    recvIndex : INT ; // 接收数据对应的轮询号
+    recvIndexOffset : INT ; // 接收轮询对应在轮询块中的偏移量
     recvMBAPProtocol : WORD ;
     recvLen : INT;
     recvFunction : BYTE ;
-    copyIndex : INT ;
+    copyIndex : INT ; // 数据复制指针
 END_VAR
 
 BEGIN
@@ -89,17 +97,17 @@ BEGIN
             OR ((recvP_S.Byte_Pointer AND DW#16#ff000000) <> DW#16#84000000) THEN
             RETURN;    
         END_IF;    
-        index := 0;
-        baseOffset := DWORD_TO_INT(SHR(IN := sendP_S.Byte_Pointer, N := 3));
-        buffOffset := DWORD_TO_INT(SHR(IN := recvP_S.Byte_Pointer, N := 3));
+        transIndex := 0;
+        pollBase := DWORD_TO_INT(SHR(IN := sendP_S.Byte_Pointer, N := 3));
+        buffBase := DWORD_TO_INT(SHR(IN := recvP_S.Byte_Pointer, N := 3));
         transLength := sendP_S.DataCount/16;
         sendP_S.DataCount := 12;
         initialized := TRUE;
     END_IF;
 
     // 范围检查
-    IF index < 0 OR index >= transLength THEN
-        index := 0;
+    IF transIndex < 0 OR transIndex >= transLength THEN
+        transIndex := 0;
     END_IF;
 
     TCON_ID (
@@ -108,12 +116,12 @@ BEGIN
         CONNECT                  := TCON_Parameters);
     
     // 发送
-    sendDBB := index * 16 + baseOffset;
+    sendDBB := transIndex * 16 + pollBase;
     sendP_S.Byte_Pointer := INT_TO_DWORD(sendDBB * 8) OR DW#16#84000000;
-    w_DBNO := INT_TO_WORD(sendP_S.DB_Nummer);
-    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB] := INT_TO_WORD(1000 + index); //MBAP_seq
-    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+2] := W#16#0; // MBAP_protocol
-    WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+4] := W#16#6; // MBAP_length
+    poll_DBNO := INT_TO_WORD(sendP_S.DB_Nummer);
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB] := INT_TO_WORD(1000 + transIndex); //MBAP_seq
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+2] := W#16#0; // MBAP_protocol
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+4] := W#16#6; // MBAP_length
     TSEND_ID (
         REQ                      := sendTrigger,
         ID                       := TCON_Parameters.id,
@@ -130,39 +138,43 @@ BEGIN
         REQ                      := disconTrigger,
         ID                       := TCON_Parameters.id);
 
-    recvDB := WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+12];
-    recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[sendDBB+14]);
     // 接收处理
     IF TRCV_ID.NDR THEN
-        w_DBNO := INT_TO_WORD(recvP_S.DB_Nummer);
-        recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset])-1000;
-        recvMBAPProtocol := WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset+2];
-        recvLen := WORD_TO_INT(WORD_TO_BLOCK_DB(w_DBNO).DW[buffOffset+4]);
-        recvFunction := WORD_TO_BLOCK_DB(w_DBNO).DB[buffOffset+7];
-        sendFunction := WORD_TO_BLOCK_DB(INT_TO_WORD(sendP_S.DB_Nummer)).DB[recvIndex * 16 + baseOffset + 7];
+        buff_DBNO := INT_TO_WORD(recvP_S.DB_Nummer); // buff 所在的DB号
+        recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase])-1000; // 接收缓冲对应的轮询号
+        recvIndexOffset := recvIndex * 16 + pollBase;
+        recvMBAPProtocol := WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+2];
+        recvLen := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+4]);
+        recvFunction := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+7];
+        sendFunction := WORD_TO_BLOCK_DB(poll_DBNO).DB[recvIndexOffset + 7];
+        recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[recvIndexOffset + 12];
+        recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[recvIndexOffset + 14]);
         // 接收成功时处理
         IF recvMBAPProtocol = w#16#0 AND recvLen > 3 AND recvFunction = sendFunction THEN
             waitCount[recvIndex] := 0;
-            FOR copyIndex := 0 TO recvLen-1 BY 1 DO
-                WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(w_DBNO).DB[buffOffset+copyIndex+6];
+            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := TRUE; // 设置设备正常标志
+            FOR copyIndex := 1 TO recvLen BY 1 DO
+                WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+copyIndex+5];
             END_FOR;
             //OnRecv(
             //    RecvDB := recvDB,
             //    RecvDBB := recvDBB,
             //    LEN := recvLen);
         ELSE
-            WORD_TO_BLOCK_DB(recvDB).DB[recvDBB] := B#16#0; // 设备不正常;
+            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE; // 设备不正常;
         END_IF;
     END_IF;
-    IF waitCount[index] > overTimes THEN // 超时处理
-        WORD_TO_BLOCK_DB(recvDB).DB[recvDBB] := B#16#0;// 设置接收无效
+    IF waitCount[transIndex] > overTimes THEN // 超时处理
+        recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+12];
+        recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+14]);
+        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE;// 设备不正常
     END_IF;    
 
     // 启动定时
     TimerON(IN := sendTrigger, PT := intervalTime);
     IF TimerON.Q THEN
-        waitCount[index] := waitCount[index] + 1;
-        index := index + 1; 
+        waitCount[transIndex] := waitCount[transIndex] + 1;
+        transIndex := transIndex + 1; 
         sendTrigger := FALSE;
         conTrigger := TRUE;
         recvTrigger := TRUE;
@@ -171,5 +183,5 @@ BEGIN
         conTrigger := FALSE;  
         disconTrigger := FALSE;
     END_IF;
-       
+
 END_FUNCTION_BLOCK
