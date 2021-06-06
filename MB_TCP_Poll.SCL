@@ -1,10 +1,10 @@
 FUNCTION_BLOCK "MB_TCP_Poll"
-TITLE='modbus 轮询'
-VERSION:'0.50'
+TITLE='modbusTCP 轮询'
+VERSION:'1.0'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
-NAME:SC
-FAMILY:CP
+NAME:MBTPoll
+FAMILY:GoosyLib
 
 VAR_INPUT 
     TCON_Parameters : STRUCT     
@@ -26,7 +26,7 @@ VAR_INPUT
         spare : WORD ;    //#!TCON config!#
     END_STRUCT ; 
     intervalTime : TIME := T#200MS;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-    overTimes : INT := 10; // 单次询问的回应时间大于间隔时间的overTimes倍，判定超时，该设备数据标记无效
+    overTimes : INT := 32; // 单次询问的回应时间大于间隔时间的overTimes倍，判定超时，该设备数据标记无效
     DATA : ANY ; // 轮询定义系列数据区
     sendP_S AT DATA: STRUCT  // Define ANY structure
         SyntaxID: BYTE := 16#10;  
