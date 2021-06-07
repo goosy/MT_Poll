@@ -5,11 +5,10 @@
 DATA_BLOCK "MT01"
 TITLE =
 VERSION : 0.0
-
 "MB_TCP_Poll"
 BEGIN
     TCON_Parameters.block_length := W#16#40;     //固定为64
-    TCON_Parameters.id := W#16#1;                //连接ID
+    TCON_Parameters.id := W#16#1;                //连接ID 每个连接必须不一样！
     TCON_Parameters.connection_type := B#16#11;  //连接类型，
     TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
     TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
@@ -31,11 +30,10 @@ END_DATA_BLOCK
 DATA_BLOCK "MT02"
 TITLE =
 VERSION : 0.0
-
 "MB_TCP_Poll"
 BEGIN
     TCON_Parameters.block_length := W#16#40;     //固定为64
-    TCON_Parameters.id := W#16#1;                //连接ID
+    TCON_Parameters.id := W#16#2;                //连接ID 每个连接必须不一样！
     TCON_Parameters.connection_type := B#16#11;  //连接类型，
     TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
     TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
@@ -63,7 +61,7 @@ DATA_BLOCK "Poll_DB"
 TITLE =
 VERSION : 0.0
 STRUCT
-    pollList1 : ARRAY  [0 .. 1] OF     // ====== 第1个连接的轮询列表
+    pollList1 : ARRAY  [0 .. 1] OF  // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
         MBAP_seq : WORD ;               //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
@@ -75,7 +73,7 @@ STRUCT
         recvDB : INT ;                  //接收数据块号
         recvDBB : INT ;                 //接收数据块起始地址
     END_STRUCT ;
-    pollList2 : ARRAY  [0 .. 0] OF     // ====== 第2个连接的轮询列表
+    pollList2 : ARRAY  [0 .. 0] OF  // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
         MBAP_seq : WORD ;               //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
@@ -87,7 +85,7 @@ STRUCT
         recvDB : INT ;                  //接收数据块号
         recvDBB : INT ;                 //接收数据块起始地址
     END_STRUCT ;
-    buff : STRUCT                       // ====== 接收缓冲区，多个modbusTCP可共用1个，buff的结构和实际值不用修改。
+    buff : STRUCT                   // ====== 接收缓冲区，多个modbusTCP可共用1个，buff的结构和实际值不用修改。
         MBAP_seq : WORD ;               //接收事务号
         MBAP_protocol : WORD ;          //接收协议号，必须为0
         MBAP_length : WORD ;            //接收长度
@@ -165,5 +163,10 @@ TITLE = 第二个modbusTCP的连接调用
         DATA  := "Poll_DB".pollList2,
         buff  := "Poll_DB".buff);
     NOP   0;
+    // "MT02".OnReceive THEN 当有新数据接收到时
+    // "MT02".receiveDB 指示已接收DB号
+    // "MT02".receiveDBB 指示已接收DB偏移量
+    // "MT02".receiveLEN 已接收数据的长度
+    // 利用以上信息进行数据转移等处理
 
 END_FUNCTION

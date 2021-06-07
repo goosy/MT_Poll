@@ -49,6 +49,10 @@ VAR_IN_OUT
 END_VAR
 
 VAR_OUTPUT
+    OnReceive : BOOL ; //指示当前周期收到数据
+    receiveDB : INT ; //当前已接收数据块号 
+    receiveDBB : INT ; //当前已接收数据开始地址
+    receiveLEN : INT ; //接收长度
 END_VAR
 
 VAR
@@ -139,6 +143,7 @@ BEGIN
         ID                       := TCON_Parameters.id);
 
     // 接收处理
+    OnReceive := FALSE;
     IF TRCV_ID.NDR THEN
         buff_DBNO := INT_TO_WORD(recvP_S.DB_Nummer); // buff 所在的DB号
         recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase])-1000; // 接收缓冲对应的轮询号
@@ -156,10 +161,10 @@ BEGIN
             FOR copyIndex := 1 TO recvLen BY 1 DO
                 WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+copyIndex+5];
             END_FOR;
-            //OnRecv(
-            //    RecvDB := recvDB,
-            //    RecvDBB := recvDBB,
-            //    LEN := recvLen);
+            OnReceive := TRUE;
+            receiveDB := WORD_TO_INT(recvDB);
+            receiveDBB := recvDBB;
+            receiveLEN := recvLen;
         ELSE
             WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE; // 设备不正常;
         END_IF;
