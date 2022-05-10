@@ -8,40 +8,40 @@ FAMILY:GoosyLib
 
 VAR_INPUT
     TCON_Parameters : STRUCT
-        block_length : WORD  := W#16#40;    //#!TCON config!#
-        id : WORD  := W#16#1;
-        connection_type : BYTE  := B#16#11;
-        active_est : BOOL := TRUE;
-        local_device_id : BYTE  := B#16#2;
-        local_tsap_id_len : BYTE ;
-        rem_subnet_id_len : BYTE ;
-        rem_staddr_len : BYTE  := B#16#4;
-        rem_tsap_id_len : BYTE ;
-        next_staddr_len : BYTE ;
-        local_tsap_id : ARRAY  [1 .. 16 ] OF BYTE  := B#16#0;
-        rem_subnet_id : ARRAY  [1 .. 6 ] OF BYTE  := B#16#0;
-        rem_staddr : ARRAY  [1 .. 6 ] OF BYTE  := B#16#C0, B#16#A8, B#16#0, B#16#1;
-        rem_tsap_id : ARRAY  [1 .. 16 ] OF BYTE  := B#16#1, B#16#F6;
-        next_staddr : ARRAY  [1 .. 6 ] OF BYTE  := B#16#0;
-        spare : WORD ;    //#!TCON config!#
+        block_length        : WORD := W#16#40;    //#!TCON config!#
+        id                  : WORD := W#16#1;
+        connection_type     : BYTE := B#16#11;
+        active_est          : BOOL := TRUE;
+        local_device_id     : BYTE := B#16#2;
+        local_tsap_id_len   : BYTE ;
+        rem_subnet_id_len   : BYTE ;
+        rem_staddr_len      : BYTE := B#16#4;
+        rem_tsap_id_len     : BYTE ;
+        next_staddr_len     : BYTE ;
+        local_tsap_id       : ARRAY  [1 .. 16 ] OF BYTE := B#16#0;
+        rem_subnet_id       : ARRAY  [1 ..  6 ] OF BYTE := B#16#0;
+        rem_staddr          : ARRAY  [1 ..  6 ] OF BYTE := B#16#C0, B#16#A8, B#16#0, B#16#1;
+        rem_tsap_id         : ARRAY  [1 .. 16 ] OF BYTE := B#16#1, B#16#F6;
+        next_staddr         : ARRAY  [1 ..  6 ] OF BYTE := B#16#0;
+        spare               : WORD := W#16#0;    //#!TCON config!#
     END_STRUCT ;
-    intervalTime : DINT := 2000;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    intervalTime            : DINT := 2000;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
     interval_time AT intervalTime : TIME;
-    tryTimes : INT := 32; // 一个设备的最多询问失败次数，超过该次数标记该设备数据无效
-    DATA : ANY ; // 轮询定义系列数据区
+    tryTimes                : INT := 32; // 一个设备的最多询问失败次数，超过该次数标记该设备数据无效
+    DATA                    : ANY ; // 轮询定义系列数据区
     sendP_S AT DATA: STRUCT  // Define ANY structure
-        SyntaxID: BYTE := 16#10;
-        DataType: BYTE := 16#2;
-        DataCount: INT ;
-        DB_Nummer: INT ;
+        SyntaxID:      BYTE := 16#10;
+        DataType:      BYTE := 16#2;
+        DataCount:      INT ;
+        DB_Nummer:      INT ;
         Byte_Pointer: DWORD := dw#16#84000000;
     END_STRUCT;
-    buff : ANY; // 接收缓冲区
+    buff                    : ANY; // 接收缓冲区
     recvP_S AT buff : STRUCT  // Define ANY structure
-        SyntaxID: BYTE := 16#10;
-        DataType: BYTE := 16#2;
-        DataCount: INT ;
-        DB_Nummer: INT ;
+        SyntaxID:      BYTE := 16#10;
+        DataType:      BYTE := 16#2;
+        DataCount:      INT ;
+        DB_Nummer:      INT ;
         Byte_Pointer: DWORD := dw#16#84000000;
     END_STRUCT;
 END_VAR
@@ -50,36 +50,38 @@ VAR_IN_OUT
 END_VAR
 
 VAR
-    conTrigger : BOOL ; // 建立TCP连接触发器
-    sendTrigger : BOOL ; // TCP发送触发器
-    recvTrigger : BOOL := TRUE; // TCP接收触发器
-    disconTrigger: BOOL ; // 断开TCP连接触发器
-    initialized : BOOL ; // 输入已初始化
-    transIndex : INT ; // 第几轮
-    transLength : INT ; // 轮询个数
-    pollBase : INT ; // 轮询块中轮询开始位置
-    buffBase : INT ; // 缓冲块中缓冲开始位置
-    TCON_ID : TCON ;
-    TSEND_ID : TSEND ;
-    TRCV_ID : TRCV ;
-    TDISCON_ID : TDISCON ;
-    TimerON : TON ;
-    waitCount : ARRAY[0..31] OF INT ;
+    conTrigger       : BOOL ;        // 建立TCP连接触发器
+    sendTrigger      : BOOL ;        // TCP发送触发器
+    recvTrigger      : BOOL := TRUE; // TCP接收触发器
+    disconTrigger    : BOOL ;        // 断开TCP连接触发器
+    initialized      : BOOL ;        // 输入已初始化
+    transIndex       : INT ;         // 第几轮
+    transLength      : INT ;         // 轮询个数
+    pollBase         : INT ;         // 轮询块中轮询开始位置
+    buffBase         : INT ;         // 缓冲块中缓冲开始位置
+    poll_DBNO        : WORD ;
+    buff_DBNO        : WORD ;
+    sendDBB          : INT ;
+    recvDB           : WORD ;        // 当前轮询接收块号     (即当前发送对应的接收块)
+    recvDBB          : INT ;         // 当前轮询接收偏移量
+    realRecvDB       : WORD ;        // 实时数据接收块号     (即当前接收到数据时对应的接收块)
+    realRecvDBB      : INT ;         // 实时数据接收偏移量
+    TCON_ID          : TCON ;
+    TSEND_ID         : TSEND ;
+    TRCV_ID          : TRCV ;
+    TDISCON_ID       : TDISCON ;
+    TimerON          : TON ;
+    waitCount        : ARRAY[0..31] OF INT ;
 END_VAR
 
 VAR_TEMP
-    poll_DBNO : WORD ;
-    buff_DBNO : WORD ;
-    sendDBB : INT ;
-    sendFunction : BYTE ;
-    recvDB : WORD ;
-    recvDBB : INT ;
-    recvIndex : INT ; // 接收数据对应的轮询号
-    recvIndexOffset : INT ; // 接收轮询对应在轮询块中的偏移量
-    recvMBAPProtocol : WORD ;
-    recvLen : INT;
-    recvFunction : BYTE ;
-    copyIndex : INT ; // 数据复制指针
+    sendFunction     : BYTE ;
+    realIndex        : INT ;  // 实时数据对应的轮询号
+    realIndexOffset  : INT ;  // 实时数据对应的偏移量
+    realMBAPProtocol : WORD ; // 实时协议头
+    realLen          : INT;   // 实时长度
+    realFunction     : BYTE ; // 实时MBT功能号
+    copyIndex        : INT ;  // 数据复制指针
 END_VAR
 
 BEGIN
@@ -95,11 +97,19 @@ BEGIN
             OR ((recvP_S.Byte_Pointer AND DW#16#ff000000) <> DW#16#84000000) THEN
             RETURN;
         END_IF;
+
         transIndex := 0;
         pollBase := DWORD_TO_INT(SHR(IN := sendP_S.Byte_Pointer, N := 3));
         buffBase := DWORD_TO_INT(SHR(IN := recvP_S.Byte_Pointer, N := 3));
+        poll_DBNO := INT_TO_WORD(sendP_S.DB_Nummer);
+        buff_DBNO := INT_TO_WORD(recvP_S.DB_Nummer); // buff 所在的DB号
         transLength := sendP_S.DataCount/16;
         sendP_S.DataCount := 12;
+
+        // 实时接收块赋初始值，以防无效地址
+        realRecvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[pollBase + 12];
+        realRecvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[pollBase + 14]);
+
         initialized := TRUE;
     END_IF;
 
@@ -116,10 +126,9 @@ BEGIN
     // 发送
     sendDBB := transIndex * 16 + pollBase;
     sendP_S.Byte_Pointer := INT_TO_DWORD(sendDBB * 8) OR DW#16#84000000;
-    poll_DBNO := INT_TO_WORD(sendP_S.DB_Nummer);
-    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB] := INT_TO_WORD(1000 + transIndex); //MBAP_seq
-    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+2] := W#16#0; // MBAP_protocol
-    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+4] := W#16#6; // MBAP_length
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB]   := INT_TO_WORD(1000 + transIndex); // P#0.0 MBAP_seq
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+2] := W#16#0;                         // P#2.0 MBAP_protocol
+    WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+4] := W#16#6;                         // P#4.0 MBAP_length
     TSEND_ID (
         REQ                      := sendTrigger,
         ID                       := TCON_Parameters.id,
@@ -136,37 +145,39 @@ BEGIN
         REQ                      := disconTrigger,
         ID                       := TCON_Parameters.id);
 
-    // 接收处理
-    WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := TRCV_ID.NDR; // 设置设备收到数据标志
+    // 当前实时接收块
+    WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,2] := FALSE; // 复位上一个实时接收块的收到标志
     IF TRCV_ID.NDR THEN
-        buff_DBNO := INT_TO_WORD(recvP_S.DB_Nummer); // buff 所在的DB号
-        recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase])-1000; // 接收缓冲对应的轮询号
-        recvIndexOffset := recvIndex * 16 + pollBase;
-        recvMBAPProtocol := WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+2];
-        recvLen := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+4]);
-        recvFunction := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+7];
-        sendFunction := WORD_TO_BLOCK_DB(poll_DBNO).DB[recvIndexOffset + 7];
-        recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[recvIndexOffset + 12];
-        recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[recvIndexOffset + 14]);
+        realIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase])-1000; // 接收缓冲对应的轮询号 (MBAP_seq - 1000)
+        realIndexOffset := realIndex * 16 + pollBase;
+        realMBAPProtocol := WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+2];
+        realLen := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase+4]);
+        realFunction := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+7];
+        sendFunction := WORD_TO_BLOCK_DB(poll_DBNO).DB[realIndexOffset + 7];
+        realRecvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[realIndexOffset + 12];
+        realRecvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[realIndexOffset + 14]);
         // 接收成功时处理
-        IF recvMBAPProtocol = w#16#0 AND recvLen > 3 AND recvFunction = sendFunction THEN
-            waitCount[recvIndex] := 0;
-            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := TRUE; // 设置设备正常标志
-            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := FALSE; // 设置设备无效标志
-            FOR copyIndex := 1 TO recvLen BY 1 DO
-                WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+copyIndex+5];
+        IF realMBAPProtocol = w#16#0 AND realLen > 3 AND realFunction = sendFunction THEN
+            waitCount[realIndex] := 0; // 超时复位
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,0] := TRUE;  // 设置设备正常标志
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,1] := FALSE; // 设置设备无效标志
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,2] := TRUE;  // 设置设备收到数据标志
+            FOR copyIndex := 1 TO realLen BY 1 DO // 将接收缓存区的数据搬移到指定接收块中
+                WORD_TO_BLOCK_DB(realRecvDB).DB[realRecvDBB+copyIndex] := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+copyIndex+5];
             END_FOR;
         ELSE
-            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE; // 设置设备正常标志;
-            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := TRUE; // 设置设备无效标志
-            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := FALSE; // 设置设备收到数据标志
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,0] := FALSE; // 设置设备正常标志;
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,1] := TRUE;  // 设置设备无效标志
+            WORD_TO_BLOCK_DB(realRecvDB).DX[realRecvDBB,2] := FALSE; // 设置设备收到数据标志
         END_IF;
     END_IF;
+
+    // 当前轮询接收块
+    recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+12];
+    recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+14]);
     IF waitCount[transIndex] > tryTimes THEN // 超时处理
-        recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+12];
-        recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+14]);
-        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE;// 设备不正常
-        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := TRUE; // 设置设备无效标志
+        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE; // 设备不正常
+        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := TRUE;  // 设置设备无效标志
         WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := FALSE; // 设置设备收到数据标志
     END_IF;
 
