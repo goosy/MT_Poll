@@ -3,7 +3,7 @@ TITLE='modbusTCP 轮询'
 VERSION:'1.2'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
-NAME:MBTPoll
+NAME:MTPoll
 FAMILY:GoosyLib
 
 VAR_INPUT
@@ -25,8 +25,9 @@ VAR_INPUT
         next_staddr : ARRAY  [1 .. 6 ] OF BYTE  := B#16#0;
         spare : WORD ;    //#!TCON config!#
     END_STRUCT ;
-    intervalTime : TIME := T#200MS;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-    overTimes : INT := 32; // 单次询问的回应时间大于间隔时间的overTimes倍，判定超时，该设备数据标记无效
+    intervalTime : DINT := 2000;   // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    interval_time AT intervalTime : TIME;
+    tryTimes : INT := 32; // 一个设备的最多询问失败次数，超过该次数标记该设备数据无效
     DATA : ANY ; // 轮询定义系列数据区
     sendP_S AT DATA: STRUCT  // Define ANY structure
         SyntaxID: BYTE := 16#10;
@@ -161,7 +162,7 @@ BEGIN
             WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := FALSE; // 设置设备收到数据标志
         END_IF;
     END_IF;
-    IF waitCount[transIndex] > overTimes THEN // 超时处理
+    IF waitCount[transIndex] > tryTimes THEN // 超时处理
         recvDB := WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+12];
         recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+14]);
         WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE;// 设备不正常
@@ -170,7 +171,7 @@ BEGIN
     END_IF;
 
     // 启动定时
-    TimerON(IN := sendTrigger, PT := intervalTime);
+    TimerON(IN := sendTrigger, PT := interval_time);
     IF TimerON.Q THEN
         waitCount[transIndex] := waitCount[transIndex] + 1;
         transIndex := transIndex + 1;

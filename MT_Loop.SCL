@@ -146,8 +146,8 @@ BEGIN
 // 第二个modbusTCP的连接调用
 // 展示部分高级用法
 "MT_Poll".MT02 (
-    intervalTime := T#500MS,      // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-    overTimes := 32,              // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
+    intervalTime := 500,          // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    tryTimes := 32,               // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
     DATA  := "Poll_DB".pollList2,
     buff  := "Poll_DB".buff);
 
