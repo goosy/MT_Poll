@@ -1,15 +1,10 @@
-// 连接数据块，为"MB_TCP_Poll"的背景数据块
+// 连接数据块，为"MT_Poll"的背景数据块
 // 一个连接就要定义一个这样的背景块。本例展示2个连接："MT01" "MT02"，依据实际增减
-
-// 第一个连接背景块，在下方依据提示填写连接IP等信息
-DATA_BLOCK "MT01"
-TITLE =
-VERSION : 0.0
-"MB_TCP_Poll"
+DATA_BLOCK "MT01" "MT_Poll"
 BEGIN
     TCON_Parameters.block_length := W#16#40;     //固定为64
     TCON_Parameters.id := W#16#1;                //连接ID 每个连接必须不一样！
-    TCON_Parameters.connection_type := B#16#11;  //连接类型，
+    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
     TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
     TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
     TCON_Parameters.local_tsap_id_len := B#16#0;
@@ -25,16 +20,11 @@ BEGIN
     TCON_Parameters.rem_tsap_id[2] := B#16#F6;   //PortL
     TCON_Parameters.spare := W#16#0;             //固定为0
 END_DATA_BLOCK
-
-// 第二个连接背景块，在下方依据提示填写连接IP等信息
-DATA_BLOCK "MT02"
-TITLE =
-VERSION : 0.0
-"MB_TCP_Poll"
+DATA_BLOCK "MT02" "MT_Poll"
 BEGIN
     TCON_Parameters.block_length := W#16#40;     //固定为64
     TCON_Parameters.id := W#16#2;                //连接ID 每个连接必须不一样！
-    TCON_Parameters.connection_type := B#16#11;  //连接类型，
+    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
     TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
     TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
     TCON_Parameters.local_tsap_id_len := B#16#0;
@@ -58,8 +48,6 @@ END_DATA_BLOCK
 // "Poll_DB".buff 缓存区，用来缓存接收的数据，必须有至少1个缓存区，多个连接可共用缓存区。
 // 缓存区也可以不在本轮询数据块中定义，比如单独一个缓存DB，只要调用时指定到正确的缓存区即可。
 DATA_BLOCK "Poll_DB"
-TITLE =
-VERSION : 0.0
 STRUCT
     pollList1 : ARRAY  [0 .. 1] OF  // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
@@ -123,18 +111,21 @@ DATA_BLOCK DB52
 STRUCT
     workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据开始
     invalid0 : BOOL ;                //数据无效标志
+    on_receive0 : BOOL ;             //新收数据标志
     MBAP_Addr0 : BYTE ;              //设备号
     MFunction0 : BYTE ;              //modbus功能号
     MLength0 : BYTE ;                //数据长度
     data0 : ARRAY[0..251] OF BYTE ;  //数据
     workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据开始
     invalid1 : BOOL ;                //数据无效标志
+    on_receive1 : BOOL ;             //新收数据标志
     MBAP_Addr1 : BYTE ;              //设备号
     MFunction1 : BYTE ;              //modbus功能号
     MLength1 : BYTE ;                //数据长度
     data1 : ARRAY[0..251] OF BYTE ;  //数据
     workOK2 : BOOL ;                 //通讯正确指示符  ===第3个接收数据开始
     invalid2 : BOOL ;                //数据无效标志
+    on_receive2 : BOOL ;             //新收数据标志
     MBAP_Addr2 : BYTE ;              //设备号
     MFunction2 : BYTE ;              //modbus功能号
     MLength2 : BYTE ;                //数据长度
@@ -146,27 +137,22 @@ END_DATA_BLOCK
 // 调用
 FUNCTION "MT_Loop" : VOID
 BEGIN
-NETWORK
-TITLE = 第一个modbusTCP的连接调用
+// 第一个modbusTCP的连接调用
 // 一切用默认参数
-    CALL "MB_TCP_Poll" , "MT01" (
-        DATA  := "Poll_DB".pollList1,
-        buff  := "Poll_DB".buff);
-    NOP   0;
+"MT_Poll".MT01 (
+    DATA  := "Poll_DB".pollList1,
+    buff  := "Poll_DB".buff);
 
-NETWORK
-TITLE = 第二个modbusTCP的连接调用
+// 第二个modbusTCP的连接调用
 // 展示部分高级用法
-    CALL "MB_TCP_Poll" , "MT02" (
-        intervalTime := T#500MS,      // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-        overTimes := 32,              // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
-        DATA  := "Poll_DB".pollList2,
-        buff  := "Poll_DB".buff);
-    NOP   0;
-    // "MT02".OnReceive THEN 当有新数据接收到时
-    // "MT02".receiveDB 指示已接收DB号
-    // "MT02".receiveDBB 指示已接收DB偏移量
-    // "MT02".receiveLEN 已接收数据的长度
-    // 利用以上信息进行数据转移等处理
+"MT_Poll".MT02 (
+    intervalTime := T#500MS,      // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    overTimes := 32,              // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
+    DATA  := "Poll_DB".pollList2,
+    buff  := "Poll_DB".buff);
+
+// IF DB5.on_receive0 THEN 当有新数据接收到时
+//     利用接收信息进行数据转移等处理
+// END_IF;
 
 END_FUNCTION

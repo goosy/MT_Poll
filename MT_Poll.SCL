@@ -1,6 +1,6 @@
-FUNCTION_BLOCK "MB_TCP_Poll"
+FUNCTION_BLOCK "MT_Poll"
 TITLE='modbusTCP 轮询'
-VERSION:'1.1'
+VERSION:'1.2'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:MBTPoll
@@ -46,13 +46,6 @@ VAR_INPUT
 END_VAR
 
 VAR_IN_OUT
-END_VAR
-
-VAR_OUTPUT
-    OnReceive : BOOL ; //指示当前周期收到数据
-    receiveDB : INT ; //当前已接收数据块号
-    receiveDBB : INT ; //当前已接收数据开始地址
-    receiveLEN : INT ; //接收长度
 END_VAR
 
 VAR
@@ -143,7 +136,7 @@ BEGIN
         ID                       := TCON_Parameters.id);
 
     // 接收处理
-    OnReceive := FALSE;
+    WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := TRCV_ID.NDR; // 设置设备收到数据标志
     IF TRCV_ID.NDR THEN
         buff_DBNO := INT_TO_WORD(recvP_S.DB_Nummer); // buff 所在的DB号
         recvIndex := WORD_TO_INT(WORD_TO_BLOCK_DB(buff_DBNO).DW[buffBase])-1000; // 接收缓冲对应的轮询号
@@ -162,13 +155,10 @@ BEGIN
             FOR copyIndex := 1 TO recvLen BY 1 DO
                 WORD_TO_BLOCK_DB(recvDB).DB[recvDBB+copyIndex] := WORD_TO_BLOCK_DB(buff_DBNO).DB[buffBase+copyIndex+5];
             END_FOR;
-            OnReceive := TRUE;
-            receiveDB := WORD_TO_INT(recvDB);
-            receiveDBB := recvDBB;
-            receiveLEN := recvLen;
         ELSE
             WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE; // 设置设备正常标志;
             WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := TRUE; // 设置设备无效标志
+            WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := FALSE; // 设置设备收到数据标志
         END_IF;
     END_IF;
     IF waitCount[transIndex] > overTimes THEN // 超时处理
@@ -176,6 +166,7 @@ BEGIN
         recvDBB := WORD_TO_INT(WORD_TO_BLOCK_DB(poll_DBNO).DW[sendDBB+14]);
         WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,0] := FALSE;// 设备不正常
         WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,1] := TRUE; // 设置设备无效标志
+        WORD_TO_BLOCK_DB(recvDB).DX[recvDBB,2] := FALSE; // 设置设备收到数据标志
     END_IF;
 
     // 启动定时
