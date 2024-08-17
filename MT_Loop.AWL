@@ -121,30 +121,30 @@ END_DATA_BLOCK
 // 建议一个设备只定义在一个DB中，本例一个DB定义多个设备仅为了展示可以这样组织
 DATA_BLOCK DB52
 STRUCT
-    workOK0 : BOOL ;    //通讯正确指示符  ===第1个接收数据开始
-    MBAP_Addr0 : BYTE ;    //设备号
-    MFunction0 : BYTE ;    //modbus功能号
-    MLength0 : BYTE ;    //数据长度
-    data0 : ARRAY[0..251] OF BYTE ;    //数据
-    workOK1 : BOOL ;    //通讯正确指示符  ===第2个接收数据开始
-    MBAP_Addr1 : BYTE ;    //设备号
-    MFunction1 : BYTE ;    //modbus功能号
-    MLength1 : BYTE ;    //数据长度
-    data1 : ARRAY[0..251] OF BYTE ;    //数据
-    workOK2 : BOOL ;    //通讯正确指示符  ===第3个接收数据开始
-    MBAP_Addr2 : BYTE ;    //设备号
-    MFunction2 : BYTE ;    //modbus功能号
-    MLength2 : BYTE ;    //数据长度
-    data2 : ARRAY[0..251] OF BYTE ;    //数据
+    workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据开始
+    invalid0 : BOOL ;                //数据无效标志
+    MBAP_Addr0 : BYTE ;              //设备号
+    MFunction0 : BYTE ;              //modbus功能号
+    MLength0 : BYTE ;                //数据长度
+    data0 : ARRAY[0..251] OF BYTE ;  //数据
+    workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据开始
+    invalid1 : BOOL ;                //数据无效标志
+    MBAP_Addr1 : BYTE ;              //设备号
+    MFunction1 : BYTE ;              //modbus功能号
+    MLength1 : BYTE ;                //数据长度
+    data1 : ARRAY[0..251] OF BYTE ;  //数据
+    workOK2 : BOOL ;                 //通讯正确指示符  ===第3个接收数据开始
+    invalid2 : BOOL ;                //数据无效标志
+    MBAP_Addr2 : BYTE ;              //设备号
+    MFunction2 : BYTE ;              //modbus功能号
+    MLength2 : BYTE ;                //数据长度
+    data2 : ARRAY[0..251] OF BYTE ;  //数据
 END_STRUCT ;
 BEGIN
 END_DATA_BLOCK
 
 // 调用
 FUNCTION "MT_Loop" : VOID
-TITLE =
-VERSION : 0.0
-
 BEGIN
 NETWORK
 TITLE = 第一个modbusTCP的连接调用
