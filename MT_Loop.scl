@@ -47,7 +47,7 @@ END_DATA_BLOCK
 // 本例只定义了2个轮询序列，即 "Poll_DB".pollList1 "Poll_DB".pollList2
 DATA_BLOCK "Poll_DB"
 STRUCT
-    pollList1 : ARRAY  [0 .. 1] OF      // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
+    pollList1 : ARRAY  [ 0 .. 2 ] OF    // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
         MBAP_seq      : WORD ;          //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
@@ -59,7 +59,7 @@ STRUCT
         recvDB        : INT ;           //接收数据块号
         recvDBB       : INT ;           //接收数据块起始地址
     END_STRUCT ;
-    pollList2 : ARRAY  [0 .. 0] OF      // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
+    pollList2 : ARRAY  [ 0 .. 0 ] OF    // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
         MBAP_seq      : WORD ;          //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
@@ -73,24 +73,30 @@ STRUCT
     END_STRUCT ;
 END_STRUCT ;
 BEGIN //在下方定义轮询数据
-    pollList1[0].unit_ID := B#16#1;
-    pollList1[0].func_code := B#16#3;
-    pollList1[0].start := W#16#0;
-    pollList1[0].length := W#16#C;
-    pollList1[0].recvDB := 52;
-    pollList1[0].recvDBB := 0;
-    pollList1[1].unit_ID := B#16#2;
-    pollList1[1].func_code := B#16#4;
-    pollList1[1].start := W#16#0;
-    pollList1[1].length := W#16#A;
-    pollList1[1].recvDB := 52;
-    pollList1[1].recvDBB := 256;
-    pollList2[0].unit_ID := B#16#3;
-    pollList2[0].func_code := B#16#4;
-    pollList2[0].start := W#16#0;
-    pollList2[0].length := W#16#8;
-    pollList2[0].recvDB := 52;
-    pollList2[0].recvDBB := 512;
+    pollList1[0].unit_ID := B#16#1; 
+    pollList1[0].func_code := B#16#3; 
+    pollList1[0].start := W#16#0; 
+    pollList1[0].length := W#16#A; 
+    pollList1[0].recvDB := 52; 
+    pollList1[0].recvDBB := 0; 
+    pollList1[1].unit_ID := B#16#1; 
+    pollList1[1].func_code := B#16#3; 
+    pollList1[1].start := W#16#0; 
+    pollList1[1].length := W#16#F; 
+    pollList1[1].recvDB := 52; 
+    pollList1[1].recvDBB := 32; 
+    pollList1[2].unit_ID := B#16#2; 
+    pollList1[2].func_code := B#16#4; 
+    pollList1[2].start := W#16#0; 
+    pollList1[2].length := W#16#F; 
+    pollList1[2].recvDB := 52; 
+    pollList1[2].recvDBB := 64; 
+    pollList2[0].unit_ID := B#16#3; 
+    pollList2[0].func_code := B#16#4; 
+    pollList2[0].start := W#16#0; 
+    pollList2[0].length := W#16#8; 
+    pollList2[0].recvDB := 52; 
+    pollList2[0].recvDBB := 96; 
 END_DATA_BLOCK
 
 // 设备数据接收DB块，可根据设备定义多个接收DB块
@@ -104,21 +110,28 @@ STRUCT
     unit_ID0 : BYTE ;                //设备号
     func_code0 : BYTE ;              //modbus功能号
     length0 : BYTE ;                 //数据长度
-    data0 : ARRAY[0..251] OF BYTE ;  //数据
+    data0 : ARRAY[0..27] OF BYTE ;  //数据
     workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据开始
     invalid1 : BOOL ;                //数据无效标志
     on_receive1 : BOOL ;             //新收数据标志
     unit_ID1 : BYTE ;                //设备号
     func_code1 : BYTE ;              //modbus功能号
     length1 : BYTE ;                 //数据长度
-    data1 : ARRAY[0..251] OF BYTE ;  //数据
+    data1 : ARRAY[0..27] OF BYTE ;  //数据
     workOK2 : BOOL ;                 //通讯正确指示符  ===第3个接收数据开始
     invalid2 : BOOL ;                //数据无效标志
     on_receive2 : BOOL ;             //新收数据标志
     unit_ID2 : BYTE ;                //设备号
     func_code2 : BYTE ;              //modbus功能号
     length2 : BYTE ;                 //数据长度
-    data2 : ARRAY[0..251] OF BYTE ;  //数据
+    data2 : ARRAY[0..27] OF BYTE ;  //数据
+    workOK3 : BOOL ;                 //通讯正确指示符  ===第4个接收数据开始
+    invalid3 : BOOL ;                //数据无效标志
+    on_receive3 : BOOL ;             //新收数据标志
+    unit_ID3 : BYTE ;                //设备号
+    func_code3 : BYTE ;              //modbus功能号
+    length3 : BYTE ;                 //数据长度
+    data3 : ARRAY[0..27] OF BYTE ;  //数据
 END_STRUCT ;
 BEGIN
 END_DATA_BLOCK
@@ -129,14 +142,14 @@ BEGIN
 // 第一个modbusTCP的连接调用
 // 一切用默认参数
 "MT_Poll".MT01 (
-    DATA  := "Poll_DB".pollList1);
+    data  := "Poll_DB".pollList1);
 
 // 第二个modbusTCP的连接调用
 // 展示部分高级用法
 "MT_Poll".MT02 (
-    intervalTime := 500,          // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-    tryTimes := 32,               // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
-    DATA  := "Poll_DB".pollList2);
+    interval_time := 500,          // 单次询问的间隔时间 (TCP协议无需考量应答时间)
+    try_times := 32,               // 大于 interval_time 的 try_times 倍便判定超时，标记该设备数据无效
+    data := "Poll_DB".pollList2);
 
 // IF DB5.on_receive0 THEN 当有新数据接收到时
 //     利用接收信息进行数据转移等处理
