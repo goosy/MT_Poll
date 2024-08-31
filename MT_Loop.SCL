@@ -14,8 +14,8 @@ BEGIN
     TCON_Parameters.next_staddr_len := B#16#0;
     TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
     TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
-    TCON_Parameters.rem_staddr[3] := B#16#17;    //IP3 23
-    TCON_Parameters.rem_staddr[4] := B#16#A;     //IP4 10
+    TCON_Parameters.rem_staddr[3] := B#16#0F;    //IP3 15
+    TCON_Parameters.rem_staddr[4] := B#16#2B;    //IP4 43
     TCON_Parameters.rem_tsap_id[1] := B#16#1;    //PortH 1F6:502
     TCON_Parameters.rem_tsap_id[2] := B#16#F6;   //PortL
     TCON_Parameters.spare := W#16#0;             //固定为0
@@ -34,8 +34,8 @@ BEGIN
     TCON_Parameters.next_staddr_len := B#16#0;
     TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
     TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
-    TCON_Parameters.rem_staddr[3] := B#16#17;    //IP3 23
-    TCON_Parameters.rem_staddr[4] := B#16#A;     //IP4 10
+    TCON_Parameters.rem_staddr[3] := B#16#0F;    //IP3 15
+    TCON_Parameters.rem_staddr[4] := B#16#2B;    //IP4 43
     TCON_Parameters.rem_tsap_id[1] := B#16#1;    //PortH 1F7:503
     TCON_Parameters.rem_tsap_id[2] := B#16#F7;   //PortL
     TCON_Parameters.spare := W#16#0;             //固定为0
@@ -45,61 +45,50 @@ END_DATA_BLOCK
 // 轮询定义数据块 "Poll_DB" DB51
 // 每个TCP连接对应一个轮询序列，可以定义多个轮询序列。
 // 本例只定义了2个轮询序列，即 "Poll_DB".pollList1 "Poll_DB".pollList2
-// "Poll_DB".buff 缓存区，用来缓存接收的数据，必须有至少1个缓存区，多个连接可共用缓存区。
-// 缓存区也可以不在本轮询数据块中定义，比如单独一个缓存DB，只要调用时指定到正确的缓存区即可。
 DATA_BLOCK "Poll_DB"
 STRUCT
-    pollList1 : ARRAY  [0 .. 1] OF  // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
+    pollList1 : ARRAY  [0 .. 1] OF      // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
-        MBAP_seq : WORD ;               //事务号 PLC自动填写
+        MBAP_seq      : WORD ;          //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
-        MBAP_length : WORD  := W#16#6;  //长度，对读命令，通常为6
-        MBAP_Addr : BYTE ;              //设备号，不关心的情况下可以填0
-        MFunction : BYTE ;              //modbus功能号
-        Addr : WORD ;                   //起始地址
-        Number : WORD ;                 //长度
-        recvDB : INT ;                  //接收数据块号
-        recvDBB : INT ;                 //接收数据块起始地址
+        MBAP_length   : WORD := W#16#6; //长度，对读命令，通常为6
+        unit_ID       : BYTE ;          //设备号，不关心的情况下可以填0
+        func_code     : BYTE ;          //modbus功能号
+        start         : WORD ;          //起始地址
+        length        : WORD ;          //长度
+        recvDB        : INT ;           //接收数据块号
+        recvDBB       : INT ;           //接收数据块起始地址
     END_STRUCT ;
-    pollList2 : ARRAY  [0 .. 0] OF  // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
+    pollList2 : ARRAY  [0 .. 0] OF      // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
     STRUCT
-        MBAP_seq : WORD ;               //事务号 PLC自动填写
+        MBAP_seq      : WORD ;          //事务号 PLC自动填写
         MBAP_protocol : WORD ;          //必须为0
-        MBAP_length : WORD  := W#16#6;  //长度，对读命令，通常为6
-        MBAP_Addr : BYTE ;              //设备号，不关心的情况下可以填0
-        MFunction : BYTE ;              //modbus功能号
-        Addr : WORD ;                   //起始地址
-        Number : WORD ;                 //长度
-        recvDB : INT ;                  //接收数据块号
-        recvDBB : INT ;                 //接收数据块起始地址
-    END_STRUCT ;
-    buff : STRUCT                   // ====== 接收缓冲区，多个modbusTCP可共用1个，buff的结构和实际值不用修改。
-        MBAP_seq : WORD ;               //接收事务号
-        MBAP_protocol : WORD ;          //接收协议号，必须为0
-        MBAP_length : WORD ;            //接收长度
-        MBAP_Addr : BYTE ;              //设备号
-        MFunction : BYTE ;              //modbus功能号
-        MLength : BYTE ;                // 接收长度
-        data : ARRAY[0..250] OF BYTE ;  //数据
+        MBAP_length   : WORD := W#16#6; //长度，对读命令，通常为6
+        unit_ID       : BYTE ;          //设备号，不关心的情况下可以填0
+        func_code     : BYTE ;          //modbus功能号
+        start         : WORD ;          //起始地址
+        length        : WORD ;          //长度
+        recvDB        : INT ;           //接收数据块号
+        recvDBB       : INT ;           //接收数据块起始地址
     END_STRUCT ;
 END_STRUCT ;
 BEGIN //在下方定义轮询数据
-    pollList1[0].MBAP_Addr := B#16#1;
-    pollList1[0].MFunction := B#16#3;
-    pollList1[0].Addr := W#16#0;
-    pollList1[0].Number := W#16#C;
+    pollList1[0].unit_ID := B#16#1;
+    pollList1[0].func_code := B#16#3;
+    pollList1[0].start := W#16#0;
+    pollList1[0].length := W#16#C;
     pollList1[0].recvDB := 52;
     pollList1[0].recvDBB := 0;
-    pollList1[1].MBAP_Addr := B#16#2;
-    pollList1[1].MFunction := B#16#4;
-    pollList1[1].Addr := W#16#0;
-    pollList1[1].Number := W#16#A;
+    pollList1[1].unit_ID := B#16#2;
+    pollList1[1].func_code := B#16#4;
+    pollList1[1].start := W#16#0;
+    pollList1[1].length := W#16#A;
     pollList1[1].recvDB := 52;
     pollList1[1].recvDBB := 256;
-    pollList2[0].MBAP_Addr := B#16#3;
-    pollList2[0].MFunction := B#16#4;
-    pollList2[0].Addr := W#16#0;
-    pollList2[0].Number := W#16#8;
+    pollList2[0].unit_ID := B#16#3;
+    pollList2[0].func_code := B#16#4;
+    pollList2[0].start := W#16#0;
+    pollList2[0].length := W#16#8;
     pollList2[0].recvDB := 52;
     pollList2[0].recvDBB := 512;
 END_DATA_BLOCK
@@ -112,23 +101,23 @@ STRUCT
     workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据开始
     invalid0 : BOOL ;                //数据无效标志
     on_receive0 : BOOL ;             //新收数据标志
-    MBAP_Addr0 : BYTE ;              //设备号
-    MFunction0 : BYTE ;              //modbus功能号
-    MLength0 : BYTE ;                //数据长度
+    unit_ID0 : BYTE ;                //设备号
+    func_code0 : BYTE ;              //modbus功能号
+    length0 : BYTE ;                 //数据长度
     data0 : ARRAY[0..251] OF BYTE ;  //数据
     workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据开始
     invalid1 : BOOL ;                //数据无效标志
     on_receive1 : BOOL ;             //新收数据标志
-    MBAP_Addr1 : BYTE ;              //设备号
-    MFunction1 : BYTE ;              //modbus功能号
-    MLength1 : BYTE ;                //数据长度
+    unit_ID1 : BYTE ;                //设备号
+    func_code1 : BYTE ;              //modbus功能号
+    length1 : BYTE ;                 //数据长度
     data1 : ARRAY[0..251] OF BYTE ;  //数据
     workOK2 : BOOL ;                 //通讯正确指示符  ===第3个接收数据开始
     invalid2 : BOOL ;                //数据无效标志
     on_receive2 : BOOL ;             //新收数据标志
-    MBAP_Addr2 : BYTE ;              //设备号
-    MFunction2 : BYTE ;              //modbus功能号
-    MLength2 : BYTE ;                //数据长度
+    unit_ID2 : BYTE ;                //设备号
+    func_code2 : BYTE ;              //modbus功能号
+    length2 : BYTE ;                 //数据长度
     data2 : ARRAY[0..251] OF BYTE ;  //数据
 END_STRUCT ;
 BEGIN
@@ -140,16 +129,14 @@ BEGIN
 // 第一个modbusTCP的连接调用
 // 一切用默认参数
 "MT_Poll".MT01 (
-    DATA  := "Poll_DB".pollList1,
-    buff  := "Poll_DB".buff);
+    DATA  := "Poll_DB".pollList1);
 
 // 第二个modbusTCP的连接调用
 // 展示部分高级用法
 "MT_Poll".MT02 (
     intervalTime := 500,          // 单次询问的间隔时间 (TCP协议无需考量应答时间)
     tryTimes := 32,               // 大于intervalTime的overTimes倍便判定超时，标记该设备数据无效
-    DATA  := "Poll_DB".pollList2,
-    buff  := "Poll_DB".buff);
+    DATA  := "Poll_DB".pollList2);
 
 // IF DB5.on_receive0 THEN 当有新数据接收到时
 //     利用接收信息进行数据转移等处理
