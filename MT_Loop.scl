@@ -1,177 +1,6 @@
-// 连接数据块，为"MT_Poll"的背景数据块
-// 一个连接就要定义一个这样的背景块。本例展示2个连接："MT01" "MT02"，依据实际增减
-DATA_BLOCK "MT01" "MT_Poll"
-BEGIN
-    TCON_Parameters.block_length := W#16#40;     //固定为64
-    TCON_Parameters.id := W#16#1;                //连接ID 每个连接必须不一样！
-    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
-    TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
-    TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
-    TCON_Parameters.local_tsap_id_len := B#16#0;
-    TCON_Parameters.rem_subnet_id_len := B#16#0;
-    TCON_Parameters.rem_staddr_len := B#16#4;
-    TCON_Parameters.rem_tsap_id_len := B#16#2;
-    TCON_Parameters.next_staddr_len := B#16#0;
-    TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
-    TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
-    TCON_Parameters.rem_staddr[3] := B#16#0F;    //IP3 15
-    TCON_Parameters.rem_staddr[4] := B#16#2B;    //IP4 43
-    TCON_Parameters.rem_tsap_id[1] := B#16#1;    //PortH 1F6:502
-    TCON_Parameters.rem_tsap_id[2] := B#16#F6;   //PortL
-    TCON_Parameters.spare := W#16#0;             //固定为0
-    interval_time := L#200;                      // 单次询问的间隔时间
-END_DATA_BLOCK
-
-DATA_BLOCK "MT02" "MT_Poll"
-BEGIN
-    TCON_Parameters.block_length := W#16#40;     //固定为64
-    TCON_Parameters.id := W#16#2;                //连接ID 每个连接必须不一样！
-    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
-    TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
-    TCON_Parameters.local_device_id := B#16#2;   //2:300CPU 5:400CPU左X5 15:400CPU右X5 8:400CPU左X8 18:400CPU右X8
-    TCON_Parameters.local_tsap_id_len := B#16#0;
-    TCON_Parameters.rem_subnet_id_len := B#16#0;
-    TCON_Parameters.rem_staddr_len := B#16#4;
-    TCON_Parameters.rem_tsap_id_len := B#16#2;
-    TCON_Parameters.next_staddr_len := B#16#0;
-    TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
-    TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
-    TCON_Parameters.rem_staddr[3] := B#16#0F;    //IP3 15
-    TCON_Parameters.rem_staddr[4] := B#16#2B;    //IP4 43
-    TCON_Parameters.rem_tsap_id[1] := B#16#1;    //PortH 1F7:503
-    TCON_Parameters.rem_tsap_id[2] := B#16#F7;   //PortL
-    TCON_Parameters.spare := W#16#0;             //固定为0
-    interval_time := L#200;                      // 单次询问的间隔时间
-END_DATA_BLOCK
-
-// 轮询定义数据块 "Poll_DB" DB51
-// 每个TCP连接对应一个轮询序列，可以定义多个轮询序列。
-// 本例只定义了2个轮询序列，即 "Poll_DB".pollList1 "Poll_DB".pollList2
-// 在本块只，只能定义 01 02 03 04 05 06 功能码的数据
-// 15 16 功能码的数据必须定义在其它块上
-DATA_BLOCK "Poll_DB"
-STRUCT
-    pollList1 : ARRAY  [ 0 .. 2 ] OF    // ====== 第1个连接的轮询列表，修改数组上下标决定轮询个数
-    STRUCT
-        enable         : BOOL := TRUE;  // 允许本poll通讯
-        timeout        : BOOL ;         // 本 poll 通讯超时
-        cyclicity      : BOOL := TRUE;  // 自动周期性询问，默认为TRUE，为 FALSE 时由下方手动触发
-        custom_trigger : BOOL ;         // 手动触发询问
-        try_times      : INT := 10;     // 最多询问失败次数，超过该次数标记该设备数据无效
-        send_DB        : INT ;          // 发送DB，为0时为本块
-        send_DBB       : INT ;          // 发送DB起始地址
-        recv_DB        : INT ;          // 接收数据块号
-        recv_DBB       : INT ;          // 接收数据块起始地址
-        status         : WORD ;         // 状态
-        wait_count     : INT ;          // 等待计时
-    END_STRUCT ;
-    pollList2 : ARRAY  [ 0 .. 0 ] OF    // ====== 第2个连接的轮询列表，修改数组上下标决定轮询个数
-    STRUCT
-        enable         : BOOL := TRUE;  // 允许本poll通讯
-        timeout        : BOOL ;         // 本poll通讯超时
-        cyclicity      : BOOL := TRUE;  // 自动周期性询问，默认为TRUE，为 FALSE 时由下方手动触发
-        custom_trigger : BOOL ;         // 手动触发询问
-        try_times      : INT := 10;     // 最多询问失败次数，超过该次数标记该设备数据无效
-        send_DB        : INT ;          // 发送DB，为0时为本块
-        send_DBB       : INT ;          // 发送DB起始地址
-        recv_DB        : INT ;          // 接收数据块号
-        recv_DBB       : INT ;          // 接收数据块起始地址
-        status         : WORD ;         // 状态
-        wait_count     : INT ;          // 等待计时
-    END_STRUCT ;
-    poll_data_00 : STRUCT // 发送数据
-        MBAP_seq      : WORD ;          // 事务号 PLC自动填写
-        MBAP_protocol : WORD ;          // 必须为0
-        MBAP_length   : WORD := W#16#6; // 长度，对读命令，通常为6
-        unit_ID       : BYTE ;          // 设备号，不关心的情况下可以填0
-        func_code     : BYTE ;          // modbus功能号
-        start         : WORD ;          // 起始地址
-        length        : WORD ;          // 长度
-    END_STRUCT;
-    poll_data_01 : STRUCT
-        MBAP_seq      : WORD ;          // 事务号 PLC自动填写
-        MBAP_protocol : WORD ;          // 必须为0
-        MBAP_length   : WORD := W#16#6; // 长度，对读命令，通常为6
-        unit_ID       : BYTE ;          // 设备号，不关心的情况下可以填0
-        func_code     : BYTE ;          // modbus功能号
-        start         : WORD ;          // 起始地址
-        length        : WORD ;          // 长度
-    END_STRUCT;
-    poll_data_02 : STRUCT
-        MBAP_seq      : WORD ;          // 事务号 PLC自动填写
-        MBAP_protocol : WORD ;          // 必须为0
-        MBAP_length   : WORD := W#16#6; // 长度，对读命令，通常为6
-        unit_ID       : BYTE ;          // 设备号，不关心的情况下可以填0
-        func_code     : BYTE ;          // modbus功能号
-        start         : WORD ;          // 起始地址
-        length        : WORD ;          // 长度
-    END_STRUCT;
-    // pollList2 的发送数据在其它块上，不在这里定义
-END_STRUCT ;
-BEGIN //在下方定义轮询数据
-    pollList1[0].send_DB := 0;
-    pollList1[0].send_DBB := 64;
-    pollList1[0].recv_DB := 52;
-    pollList1[0].recv_DBB := 0;
-    pollList1[1].send_DB := 0;
-    pollList1[1].send_DBB := 76;
-    pollList1[1].recv_DB := 52;
-    pollList1[1].recv_DBB := 32;
-    pollList1[2].send_DB := 0;
-    pollList1[2].send_DBB := 88;
-    pollList1[2].recv_DB := 52;
-    pollList1[2].recv_DBB := 64;
-    pollList2[0].cyclicity  := FALSE;
-    pollList2[0].custom_trigger := FALSE;
-    pollList2[0].send_DB := 53;
-    pollList2[0].send_DBB := 8;
-    pollList2[0].recv_DB := 53;
-    pollList2[0].recv_DBB := 0;
-
-    poll_data_00.unit_ID := B#16#1;
-    poll_data_00.func_code := B#16#3;
-    poll_data_00.start := W#16#0;
-    poll_data_00.length := W#16#A;
-    poll_data_01.unit_ID := B#16#1;
-    poll_data_01.func_code := B#16#3;
-    poll_data_01.start := W#16#0;
-    poll_data_01.length := W#16#F;
-    poll_data_02.unit_ID := B#16#2;
-    poll_data_02.func_code := B#16#4;
-    poll_data_02.start := W#16#0;
-    poll_data_02.length := W#16#A;
-    // pollList2 的发送数据在其它块上，不在这里定义
-END_DATA_BLOCK
-
-// 设备数据接收DB块，可根据设备定义多个接收DB块
-// 本例DB52，在其中定义了4个设备的数据，应依据实际增减
-// 建议一个设备只定义在一个DB中，本例一个DB定义多个设备仅为了展示可以这样组织
-DATA_BLOCK DB52
-STRUCT
-    workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据开始
-    invalid0 : BOOL ;                //数据无效标志
-    on_receive0 : BOOL ;             //新收数据标志
-    unit_ID0 : BYTE ;                //设备号
-    func_code0 : BYTE ;              //modbus功能号
-    length0 : BYTE ;                 //数据长度
-    data0 : ARRAY[0..27] OF BYTE ;   //数据
-    workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据开始
-    invalid1 : BOOL ;                //数据无效标志
-    on_receive1 : BOOL ;             //新收数据标志
-    unit_ID1 : BYTE ;                //设备号
-    func_code1 : BYTE ;              //modbus功能号
-    length1 : BYTE ;                 //数据长度
-    data1 : ARRAY[0..27] OF BYTE ;   //数据
-    workOK2 : BOOL ;                 //通讯正确指示符  ===第3个接收数据开始
-    invalid2 : BOOL ;                //数据无效标志
-    on_receive2 : BOOL ;             //新收数据标志
-    unit_ID2 : BYTE ;                //设备号
-    func_code2 : BYTE ;              //modbus功能号
-    length2 : BYTE ;                 //数据长度
-    data2 : ARRAY[0..27] OF BYTE ;   //数据
-END_STRUCT ;
-BEGIN
-END_DATA_BLOCK
+// 本代码由 S7_SCL_SRC_GEN 自动生成。author: goosy.jo@gmail.com
+// 配置文件: D:/codes/AS/S7-AS/MT_Poll/MT.yaml
+// 摘要: 72cc1d21dac4ec28fd7f047fbb777f64
 
 FUNCTION_BLOCK "write_DO"
 TITLE='MT写命令'
@@ -180,63 +9,266 @@ AUTHOR:Goosy
 NAME:writeB
 FAMILY:GooLib
 VAR_INPUT
-    workOK {S7_m_c := 'true'} : BOOL;  // 设备正常指示
-    invalid {S7_m_c := 'true'} : BOOL; // 设备无效指示
-    on_receive : BOOL;                 // 设备接收指示
-    r_unit_ID : BYTE;                  // 设备号
-    r_func_code : BYTE;                // 功能号
-    start_H : BYTE ;                   // 写起始高字节 读返回时为数量
-    start_L : BYTE ;                   // 写起始低字节 读返回时为 Q0.0 ~ Q0.7
-    len_H : BYTE ;                     // 写数量高字节
-    len_L : BYTE ;                     // 写数量低字节
-    DO01 : ARRAY[0..7] OF BOOL;        // QW0 数据
-    QW AT DO01 : BYTE;                 // QW0 数据
+  r_work_F : BOOL ;                  // 设备正常指示
+  r_invalid : BOOL ;                 // 设备无效指示
+  r_on_receive : BOOL ;              // 设备接收指示
+  r_unit_ID : BYTE ;                 // 设备号
+  r_func_code : BYTE ;               // modbus功能号
+  r_length : BYTE ;                  // 接收长度
+  r_B0 : BYTE ;                      // 接收字节
+  r_B1 : BYTE ;                      // 接收字节
+  w_work_F : BOOL ;                  // 设备正常指示
+  w_invalid : BOOL ;                 // 设备无效指示
+  w_on_receive : BOOL ;              // 设备接收指示
+  w_unit_ID : BYTE ;                 // 设备号
+  w_func_code : BYTE ;               // modbus功能号
+  start_H : BYTE ;                   // 写起始高字节
+  start_L : BYTE ;                   // 写起始低字节
+  len_H : BYTE ;                     // 写数量高字节
+  len_L : BYTE ;                     // 写数量低字节
+  CH : ARRAY[1..8] OF BOOL;          // QB0 数据
+  B0 AT CH : BYTE;                   // QB0 数据
 END_VAR
 VAR_OUTPUT
-    MBAP_seq         : WORD ;          // 事务号 PLC自动填写
-    MBAP_protocol    : WORD ;          // 必须为0
-    MBAP_length      : WORD := W#16#8; // 长度，对读命令，通常为6
-    unit_ID : BYTE := B#16#1;          // 子站地址
-    func_code : BYTE := B#16#F;        // modbus 功能号，15写多个线圈
-    start : INT := 0;                  // 起始地址
-    length : INT := 8;                 // 数据长度
-    betys : BYTE := B#16#1;            // 字节数
-    data : BYTE := B#16#0;             // 数据
+  MBAP_seq         : WORD ;          // 事务号 PLC自动填写
+  MBAP_protocol    : WORD := W#16#0; // 必须为0
+  MBAP_length      : WORD := W#16#8; // 长度，对读命令，通常为6
+  unit_ID : BYTE := B#16#3;          // 子站地址
+  func_code : BYTE := B#16#F;        // modbus 功能号，15写多个线圈
+  start : INT := 0;                  // 起始地址
+  length : INT := 8;                 // 数据长度
+  betys : BYTE := B#16#1;            // 字节数
+  data : BYTE := B#16#0;             // 数据
 END_VAR
 VAR_IN_OUT
-    writing : BOOL;                    //正在写
+  writing : BOOL;                    //正在写
 END_VAR
 BEGIN
-IF QW <> data THEN
-    data := QW;
-    writing := TRUE;
-END_IF;
-IF work_F AND on_receive THEN
-    writing := FALSE;
+IF B0 <> r_B0 THEN
+  data := B0;
+  writing := TRUE;
 END_IF;
 END_FUNCTION_BLOCK
 
-DATA_BLOCK "Q" "write_DO"
+DATA_BLOCK "EDO01" "write_DO"
 BEGIN
+END_DATA_BLOCK
+
+
+// 设备数据接收DB块，可根据设备定义多个接收DB块
+// 本例DB52，在其中定义了4个设备的数据，应依据实际增减
+// 建议一个设备只定义在一个DB中，本例一个DB定义多个设备仅为了展示可以这样组织
+DATA_BLOCK "rdata"
+STRUCT
+    workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据 0
+    invalid0 : BOOL ;                //数据无效标志
+    on_receive0 : BOOL ;             //新收数据标志
+    unit_ID0 : BYTE ;                //设备号
+    func_code0 : BYTE ;              //modbus功能号
+    length0 : BYTE ;                 //数据长度
+    data0 : ARRAY[0..59] OF BYTE ;   //数据
+    workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据 64
+    invalid1 : BOOL ;                //数据无效标志
+    on_receive1 : BOOL ;             //新收数据标志
+    unit_ID1 : BYTE ;                //设备号
+    func_code1 : BYTE ;              //modbus功能号
+    length1 : BYTE ;                 //数据长度
+    data1 : ARRAY[0..59] OF BYTE ;   //数据
+END_STRUCT ;
+BEGIN
+END_DATA_BLOCK
+
+// 连接数据块，为"MT_Poll"的背景数据块
+// 一个连接就要定义一个这样的背景块。本例展示2个连接："MT01" "MT02"，依据实际增减
+DATA_BLOCK "MT01" "MT_Poll" // 连接1 192.168.28.62:502
+BEGIN
+    TCON_Parameters.block_length := W#16#40;     //固定为64
+    TCON_Parameters.id := W#16#0001;             //连接ID 每个连接必须不一样！
+    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
+    TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
+    TCON_Parameters.local_device_id := B#16#02;  //CPU31x-2_PN/DP  
+    TCON_Parameters.local_tsap_id_len := B#16#0;
+    TCON_Parameters.rem_subnet_id_len := B#16#0;
+    TCON_Parameters.rem_staddr_len := B#16#4;
+    TCON_Parameters.rem_tsap_id_len := B#16#2;
+    TCON_Parameters.next_staddr_len := B#16#0;
+    TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
+    TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
+    TCON_Parameters.rem_staddr[3] := B#16#1C;    //IP3 28
+    TCON_Parameters.rem_staddr[4] := B#16#3E;    //IP4 62
+    TCON_Parameters.rem_tsap_id[1] := B#16#01;   //PortH 502
+    TCON_Parameters.rem_tsap_id[2] := B#16#F6;   //PortL
+    TCON_Parameters.spare := W#16#0;             //固定为0
+END_DATA_BLOCK
+
+DATA_BLOCK "MT02" "MT_Poll" // 连接2 192.168.15.43:503
+BEGIN
+    TCON_Parameters.block_length := W#16#40;     //固定为64
+    TCON_Parameters.id := W#16#0002;             //连接ID 每个连接必须不一样！
+    TCON_Parameters.connection_type := B#16#11;  //连接类型 11H=TCP/IP native, 12H=ISO on TCP, 13H=UDP, 01=TCP/IP comp
+    TCON_Parameters.active_est := TRUE;          //是否主动（本功能调用必须为TRUE）
+    TCON_Parameters.local_device_id := B#16#02;  //CPU31x-2_PN/DP  
+    TCON_Parameters.local_tsap_id_len := B#16#0;
+    TCON_Parameters.rem_subnet_id_len := B#16#0;
+    TCON_Parameters.rem_staddr_len := B#16#4;
+    TCON_Parameters.rem_tsap_id_len := B#16#2;
+    TCON_Parameters.next_staddr_len := B#16#0;
+    TCON_Parameters.rem_staddr[1] := B#16#C0;    //IP1 192
+    TCON_Parameters.rem_staddr[2] := B#16#A8;    //IP2 168
+    TCON_Parameters.rem_staddr[3] := B#16#0F;    //IP3 15
+    TCON_Parameters.rem_staddr[4] := B#16#2B;    //IP4 43
+    TCON_Parameters.rem_tsap_id[1] := B#16#01;   //PortH 503
+    TCON_Parameters.rem_tsap_id[2] := B#16#F7;   //PortL
+    TCON_Parameters.spare := W#16#0;             //固定为0
+END_DATA_BLOCK
+
+// 轮询定义数据块 "MT_polls_DB" DB51
+// 每个TCP连接对应一个轮询序列，可以定义多个轮询序列。
+// 本例只定义了2个轮询序列，即 "Poll_DB".MT01 "Poll_DB".MT02
+// 在本块只，只能定义 01 02 03 04 05 06 功能码的数据
+// 15 16 功能码的数据必须定义在其它块上
+DATA_BLOCK "MT_polls_DB"
+TITLE = "轮询定义"
+VERSION : 0.0
+STRUCT
+    MT01 : ARRAY  [0 .. 1] OF // ===== 轮询列表 连接1 192.168.28.62:502
+    STRUCT
+        enable         : BOOL := TRUE; // 允许本poll通讯
+        timeout        : BOOL ;        // 本 poll 通讯超时
+        continuous     : BOOL := TRUE; // 保留 
+        periodicity    : BOOL := TRUE; // 自动周期性触发询问，默认为TRUE，为 FALSE 时由下方手动触发
+        is_modbus      : BOOL := TRUE; // 保留 以与其它轮询保持一致
+        custom_trigger : BOOL ;        // 手动触发询问
+        request        : BOOL ;        // 保留
+        request_fo     : BOOL ;        // 保留
+        try_times      : INT := 10;    // 最多询问失败次数，超过该次数标记该设备数据无效
+        send_DB        : INT ;         // 发送DB，为0时为本块
+        send_start     : INT ;         // 发送DB起始地址
+        recv_DB        : INT ;         // 接收数据块号
+        recv_start     : INT ;         // 接收数据块起始地址
+        status         : WORD ;        // 状态
+        wait_count     : INT ;         // 等待计时
+    END_STRUCT ;
+    MT02 : ARRAY  [0 .. 1] OF // ===== 轮询列表 连接2 192.168.15.43:503
+    STRUCT
+        enable         : BOOL := TRUE; // 允许本poll通讯
+        timeout        : BOOL ;        // 本 poll 通讯超时
+        continuous     : BOOL := TRUE; // 保留 
+        periodicity    : BOOL := TRUE; // 自动周期性触发询问，默认为TRUE，为 FALSE 时由下方手动触发
+        is_modbus      : BOOL := TRUE; // 保留 以与其它轮询保持一致
+        custom_trigger : BOOL ;        // 手动触发询问
+        request        : BOOL ;        // 保留
+        request_fo     : BOOL ;        // 保留
+        try_times      : INT := 10;    // 最多询问失败次数，超过该次数标记该设备数据无效
+        send_DB        : INT ;         // 发送DB，为0时为本块
+        send_start     : INT ;         // 发送DB起始地址
+        recv_DB        : INT ;         // 接收数据块号
+        recv_start     : INT ;         // 接收数据块起始地址
+        status         : WORD ;        // 状态
+        wait_count     : INT ;         // 等待计时
+    END_STRUCT ;
+    p0_data : STRUCT
+        MBAP_seq : WORD ;              // 事务号 PLC自动填写
+        MBAP_protocol : WORD ;         // 必须为0
+        MBAP_length : WORD  := W#16#6; // 长度，对读命令，通常为6
+        unit_ID : BYTE ;               // 设备号，不关心的情况下可以填0
+        func_code : BYTE ;             // modbus功能号
+        address : WORD ;               // 起始地址
+        data : WORD ;                  // 数据，对 05 06 功能码来说为写入值，对其它功能码来说为长度
+    END_STRUCT;
+    p1_data : STRUCT
+        MBAP_seq : WORD ;              // 事务号 PLC自动填写
+        MBAP_protocol : WORD ;         // 必须为0
+        MBAP_length : WORD  := W#16#6; // 长度，对读命令，通常为6
+        unit_ID : BYTE ;               // 设备号，不关心的情况下可以填0
+        func_code : BYTE ;             // modbus功能号
+        address : WORD ;               // 起始地址
+        data : WORD ;                  // 数据，对 05 06 功能码来说为写入值，对其它功能码来说为长度
+    END_STRUCT;
+    p2_data : STRUCT
+        MBAP_seq : WORD ;              // 事务号 PLC自动填写
+        MBAP_protocol : WORD ;         // 必须为0
+        MBAP_length : WORD  := W#16#6; // 长度，对读命令，通常为6
+        unit_ID : BYTE ;               // 设备号，不关心的情况下可以填0
+        func_code : BYTE ;             // modbus功能号
+        address : WORD ;               // 起始地址
+        data : WORD ;                  // 数据，对 05 06 功能码来说为写入值，对其它功能码来说为长度
+    END_STRUCT;
+END_STRUCT ;
+BEGIN
+    // conn0 --- 连接1 192.168.28.62:502
+    // poll 0: 出站1#流量计
+    MT01[0].periodicity := TRUE;
+    MT01[0].try_times := 10;
+    MT01[0].send_DB := 20;
+    MT01[0].send_start := 64;
+    MT01[0].recv_DB := 52;
+    MT01[0].recv_start := 0;
+    // send data
+    p0_data.MBAP_protocol := W#16#0;
+    p0_data.MBAP_length := W#16#6;
+    p0_data.unit_ID := B#16#1;
+    p0_data.func_code := B#16#3;
+    p0_data.address := W#16#0;
+    p0_data.data := W#16#1C;
+    // poll 1: 通讯状态信息
+    MT01[1].periodicity := TRUE;
+    MT01[1].try_times := 10;
+    MT01[1].send_DB := 20;
+    MT01[1].send_start := 76;
+    MT01[1].recv_DB := 52;
+    MT01[1].recv_start := 64;
+    // send data
+    p1_data.MBAP_protocol := W#16#0;
+    p1_data.MBAP_length := W#16#6;
+    p1_data.unit_ID := B#16#1;
+    p1_data.func_code := B#16#4;
+    p1_data.address := W#16#158C;
+    p1_data.data := W#16#5;
+
+    // conn1 --- 连接2 192.168.15.43:503
+    // poll 2: DO读
+    MT02[0].periodicity := TRUE;
+    MT02[0].try_times := 10;
+    MT02[0].send_DB := 20;
+    MT02[0].send_start := 88;
+    MT02[0].recv_DB := 31;
+    MT02[0].recv_start := 0;
+    // send data
+    p2_data.MBAP_protocol := W#16#0;
+    p2_data.MBAP_length := W#16#6;
+    p2_data.unit_ID := B#16#3;
+    p2_data.func_code := B#16#1;
+    p2_data.address := W#16#0;
+    p2_data.data := W#16#8;
+    // poll 3: DO写
+    MT02[1].periodicity := FALSE;
+    MT02[1].custom_trigger := FALSE;
+    MT02[1].try_times := 10;
+    MT02[1].send_DB := 31;
+    MT02[1].send_start := 16;
+    MT02[1].recv_DB := 31;
+    MT02[1].recv_start := 6;
+    // MT02[1] 的发送数据在其它块上，不在这里定义
 END_DATA_BLOCK
 
 // 调用
 FUNCTION "MT_Loop" : VOID
-BEGIN
-// 第一个modbusTCP的连接调用
-// 一切用默认参数
-"MT_Poll".MT01 (
-    data  := "Poll_DB".pollList1);
+// 连接1 192.168.28.62:502
+"MT_Poll"."MT01" (
+    data := "MT_polls_DB".MT01);
+// 扩展状态位
+IF "rdata".invalid1 THEN
+  "rdata".data1[0] := B#16#00;
+  "rdata".data1[1] := B#16#00;
+  "rdata".data1[8] := B#16#00;
+  "rdata".data1[9] := B#16#00;
+END_IF;
 
-// 第二个modbusTCP的连接调用
-// 展示部分高级用法
-"MT_Poll".MT02 (
-    interval_time := 500,          // 单次询问的间隔时间 (TCP协议无需考量应答时间)
-    data := "Poll_DB".pollList2);
-"write_DO"."Q"(writing := "Poll_DB".pollList2[0].trigger);
-
-// IF DB5.on_receive0 THEN 当有新数据接收到时
-//     利用接收信息进行数据转移等处理
-// END_IF;
+// 连接2 192.168.15.43:503
+"MT_Poll"."MT02" (
+    interval_time := 500,
+    data := "MT_polls_DB".MT02);
+"write_DO"."EDO01"(writing := MT_polls_DB.pollList2[1].custom_trigger);
 
 END_FUNCTION

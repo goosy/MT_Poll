@@ -1,0 +1,142 @@
+name: test-ModbusTCP
+
+includes: |-
+  FUNCTION_BLOCK "write_DO"
+  TITLE='MT写命令'
+  VERSION:'1.0'
+  AUTHOR:Goosy
+  NAME:writeB
+  FAMILY:GooLib
+  VAR_INPUT
+    r_work_F : BOOL ;                  // 设备正常指示
+    r_invalid : BOOL ;                 // 设备无效指示
+    r_on_receive : BOOL ;              // 设备接收指示
+    r_unit_ID : BYTE ;                 // 设备号
+    r_func_code : BYTE ;               // modbus功能号
+    r_length : BYTE ;                  // 接收长度
+    r_B0 : BYTE ;                      // 接收字节
+    r_B1 : BYTE ;                      // 接收字节
+    w_work_F : BOOL ;                  // 设备正常指示
+    w_invalid : BOOL ;                 // 设备无效指示
+    w_on_receive : BOOL ;              // 设备接收指示
+    w_unit_ID : BYTE ;                 // 设备号
+    w_func_code : BYTE ;               // modbus功能号
+    start_H : BYTE ;                   // 写起始高字节
+    start_L : BYTE ;                   // 写起始低字节
+    len_H : BYTE ;                     // 写数量高字节
+    len_L : BYTE ;                     // 写数量低字节
+    CH : ARRAY[1..8] OF BOOL;          // QB0 数据
+    B0 AT CH : BYTE;                   // QB0 数据
+  END_VAR
+  VAR_OUTPUT
+    MBAP_seq         : WORD ;          // 事务号 PLC自动填写
+    MBAP_protocol    : WORD := W#16#0; // 必须为0
+    MBAP_length      : WORD := W#16#8; // 长度，对读命令，通常为6
+    unit_ID : BYTE := B#16#3;          // 子站地址
+    func_code : BYTE := B#16#F;        // modbus 功能号，15写多个线圈
+    start : INT := 0;                  // 起始地址
+    length : INT := 8;                 // 数据长度
+    betys : BYTE := B#16#1;            // 字节数
+    data : BYTE := B#16#0;             // 数据
+  END_VAR
+  VAR_IN_OUT
+    writing : BOOL;                    //正在写
+  END_VAR
+  BEGIN
+  IF B0 <> r_B0 THEN
+    data := B0;
+    writing := TRUE;
+  END_IF;
+  END_FUNCTION_BLOCK
+
+  DATA_BLOCK "EDO01" "write_DO"
+  BEGIN
+  END_DATA_BLOCK
+
+
+  // 设备数据接收DB块，可根据设备定义多个接收DB块
+  // 本例DB52，在其中定义了4个设备的数据，应依据实际增减
+  // 建议一个设备只定义在一个DB中，本例一个DB定义多个设备仅为了展示可以这样组织
+  DATA_BLOCK "rdata"
+  STRUCT
+      workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据 0
+      invalid0 : BOOL ;                //数据无效标志
+      on_receive0 : BOOL ;             //新收数据标志
+      unit_ID0 : BYTE ;                //设备号
+      func_code0 : BYTE ;              //modbus功能号
+      length0 : BYTE ;                 //数据长度
+      data0 : ARRAY[0..59] OF BYTE ;   //数据
+      workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据 64
+      invalid1 : BOOL ;                //数据无效标志
+      on_receive1 : BOOL ;             //新收数据标志
+      unit_ID1 : BYTE ;                //设备号
+      func_code1 : BYTE ;              //modbus功能号
+      length1 : BYTE ;                 //数据长度
+      data1 : ARRAY[0..59] OF BYTE ;   //数据
+  END_STRUCT ;
+  BEGIN
+  END_DATA_BLOCK
+
+symbols:
+- [MT_polls_DB, DB20]
+- [rdata, DB52]
+- [write_DO, FB822]
+- [EDO01, DB31, write_DO, DO数据]
+- [MT01, DB21]
+- [MT02, DB22]
+
+list:
+- comment: 连接1 192.168.28.62:502
+  ID: 1
+  DB: MT01
+  host: 192.168.28.62
+  port: 502
+  name: pollList1
+
+  polls:
+  - comment: 出站1#流量计
+    unit_ID: 1
+    func_code: 3
+    started_addr: 0
+    length: 28
+    recv_DB: rdata
+    recv_start: 0
+  - comment: 通讯状态信息
+    unit_ID: 1
+    func_code: 4
+    started_addr: 5516
+    length: 5
+    recv_DB: rdata
+    recv_start: 64
+    extra_code: |-
+      // 扩展状态位
+      IF "rdata".invalid1 THEN
+        "rdata".data1[0] := B#16#00;
+        "rdata".data1[1] := B#16#00;
+        "rdata".data1[8] := B#16#00;
+        "rdata".data1[9] := B#16#00;
+      END_IF;
+
+- comment: 连接2 192.168.15.43:503
+  ID: 2
+  DB: MT02
+  host: 192.168.15.43
+  port: 503
+  name: pollList2
+  interval_time: 500
+  polls:
+  - comment: DO读
+    unit_ID: 3
+    func_code: 1
+    started_addr: 0
+    length: 8
+    recv_DB: EDO01
+    recv_start: 0
+  - comment: DO写
+    custom_trigger: false
+    send_DB: EDO01
+    send_start: 16
+    recv_DB: EDO01
+    recv_start: 6
+    extra_code: |-
+      "write_DO"."EDO01"(writing := MT_polls_DB.MT02[1].custom_trigger);
