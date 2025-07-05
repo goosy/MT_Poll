@@ -11,6 +11,7 @@ includes: |-
     r_work_F : BOOL ;                  // 设备正常指示
     r_invalid : BOOL ;                 // 设备无效指示
     r_on_receive : BOOL ;              // 设备接收指示
+    r_pause : BOOL ;                   // 设备暂停指示
     r_unit_ID : BYTE ;                 // 设备号
     r_func_code : BYTE ;               // modbus功能号
     r_length : BYTE ;                  // 接收长度
@@ -19,6 +20,7 @@ includes: |-
     w_work_F : BOOL ;                  // 设备正常指示
     w_invalid : BOOL ;                 // 设备无效指示
     w_on_receive : BOOL ;              // 设备接收指示
+    w_pause : BOOL ;                   // 设备暂停指示
     w_unit_ID : BYTE ;                 // 设备号
     w_func_code : BYTE ;               // modbus功能号
     start_H : BYTE ;                   // 写起始高字节
@@ -62,6 +64,7 @@ includes: |-
       workOK0 : BOOL ;                 //通讯正确指示符  ===第1个接收数据 0
       invalid0 : BOOL ;                //数据无效标志
       on_receive0 : BOOL ;             //新收数据标志
+      pause0 : BOOL ;                  //暂停标志
       unit_ID0 : BYTE ;                //设备号
       func_code0 : BYTE ;              //modbus功能号
       length0 : BYTE ;                 //数据长度
@@ -69,6 +72,7 @@ includes: |-
       workOK1 : BOOL ;                 //通讯正确指示符  ===第2个接收数据 64
       invalid1 : BOOL ;                //数据无效标志
       on_receive1 : BOOL ;             //新收数据标志
+      pause1 : BOOL ;                  //暂停标志
       unit_ID1 : BYTE ;                //设备号
       func_code1 : BYTE ;              //modbus功能号
       length1 : BYTE ;                 //数据长度

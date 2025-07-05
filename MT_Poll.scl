@@ -1,6 +1,6 @@
 FUNCTION_BLOCK "MT_Poll"
 TITLE='modbusTCP 轮询'
-VERSION:'1.5'
+VERSION:'1.6'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:MTPoll
@@ -95,8 +95,8 @@ VAR_TEMP
     index          : INT ;             // 数据复制指针
     wait_count     : INT ;             // 超时值
     try_times      : INT ;             // 一个设备的最多询问失败次数，超过该次数标记该设备数据无效
-    enable_poll    : BOOL ;            // 询问是否允许
     active_poll    : BOOL ;            // 询问是否活跃
+    pause_poll     : BOOL ;            // 询问是否暂停
     timeout        : BOOL ;            // 超时
 END_VAR
 
@@ -164,20 +164,27 @@ BEGIN
             timeout := wait_count > try_times;
             // 在超时上升沿处理
             IF timeout AND NOT WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 1] THEN
-                WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 5] := FALSE;     // 复位 custom_trigger
-                WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 0] := FALSE; // 设备不正常
+                WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 5] := FALSE;       // 复位 custom_trigger
+                WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 0] := FALSE; // 设备工作不正常
                 WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 1] := TRUE;  // 设置设备无效标志
-                WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 2] := FALSE; // 设置设备收到数据标志
+                WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 2] := FALSE; // 设置设备未收到数据标志
             END_IF;
 
-            enable_poll := WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 0];
+            // WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 0]: enable_poll
+            // WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 3]: periodicity
+            // WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 5]: custom_trigger
             active_poll := WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 3] OR WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 5];
-            IF NOT enable_poll OR NOT active_poll THEN
+            pause_poll := NOT WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 0] OR NOT active_poll;
+            WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 3] := pause_poll;  // 设置设备暂停标志
+            IF pause_poll THEN
+                // 设备工作正常和无效标志保持不变
+                WORD_TO_BLOCK_DB(t_recv_DB).DX[t_recv_start, 2] := FALSE; // 设置设备未收到数据标志
                 wait_count:= 0; // 计时归零
                 IF poll_index = index THEN
                     poll_index := (index + 1) MOD poll_length;
                 END_IF;
             END_IF;
+
             WORD_TO_BLOCK_DB(w_poll_DB).DW[offset + 14] := INT_TO_WORD(wait_count);
             WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 1] := timeout;
         END_FOR;
@@ -249,8 +256,8 @@ BEGIN
             AND buff.func_code = WORD_TO_BLOCK_DB(t_send_DB).DB[t_send_start + 7] // 对应轮询号的功能号
         THEN
             WORD_TO_BLOCK_DB(w_poll_DB).DW[t_offset + 14] := 0;    // wait_count 复位
-            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,0] := TRUE;  // 设置设备正常标志
-            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,1] := FALSE; // 设置设备无效标志
+            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,0] := TRUE;  // 设置设备工作正常
+            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,1] := FALSE; // 设置设备有效
             WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,2] := TRUE;  // 设置设备收到数据标志
             // 将接收缓存区的数据搬移到指定接收块中
             WORD_TO_BLOCK_DB(w_last_DB).DB[last_recv_start+1] := buff.unit_ID;
@@ -261,9 +268,9 @@ BEGIN
             // 复位自定义发送触发器
             WORD_TO_BLOCK_DB(w_poll_DB).DX[offset, 5] := FALSE;
         ELSE
-            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,0] := FALSE; // 设置设备正常标志;
-            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,1] := TRUE;  // 设置设备无效标志
-            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,2] := FALSE; // 设置设备收到数据标志
+            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,0] := FALSE; // 设置设备工作不正常
+            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,1] := TRUE;  // 设置设备无效
+            WORD_TO_BLOCK_DB(w_last_DB).DX[last_recv_start,2] := FALSE; // 设置设备未收到数据标志
         END_IF;
     END_IF;
 END_FUNCTION_BLOCK
